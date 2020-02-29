@@ -1,5 +1,10 @@
 #include "pch.h"
 #include "BMSData.h"
 
-using namespace BMS;
+using namespace bms;
 
+bool BMSData::Make(std::string path) {
+
+
+	return true;
+}

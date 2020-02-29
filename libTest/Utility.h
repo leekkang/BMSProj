@@ -1,28 +1,40 @@
-//#pragma once
-#ifndef UTILITY_H
-#define UTILITY_H
-
-
+#pragma once
 
 #include <vector>
 #include <string>
 #include <sstream>
+#include <iostream>
+#include <ctime>
+
+#define PRINT_LOG 1
+
+#if PRINT_LOG
+#define __FILENAME__ (strrchr(__FILE__,'\\')+1)	// change full path to file name
+#define TRACE(msg) { std::cout << "[" << __FILENAME__ << ":" << __FUNCTION__ << "():" << __LINE__ << "] : " << msg << std::endl; }
+//#define TRACE(msg) { printf("[%s:%s():%d] : %s\n", __FILENAME__, __FUNCTION__, __LINE__, msg); }
+//#define TRACE(msg, ...) { printf("[%s:%s():%d] : "msg"\n", __FILENAME__, __FUNCTION__, __LINE__, ##__VA_ARGS__); }
+#else
+#define TRACE(s, ...) ;
+#endif
+
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) TypeName(const TypeName&) = delete; \
+										   TypeName& operator=(const TypeName&) = delete;
 
 namespace Utility {
 	constexpr auto TRIM_SPACE = " \t\n\r";
 	//#define TRIM_SPACE " \t\n\r"
 
 	template<typename Out>
-	constexpr void split(const std::string &s, char delim, Out result) {
+	constexpr void Split(const std::string &s, char delim, Out result) {
 		std::stringstream ss(s);
 		std::string item;
-
+		
 		while (getline(ss, item, delim))
 			*(result++) = item;
 	}
-	inline std::vector<std::string> split(const std::string &s, const char delim) {
+	inline std::vector<std::string> Split(const std::string &s, const char delim) {
 		std::vector<std::string> elems;
-		split(s, delim, back_inserter(elems));
+		Split(s, delim, back_inserter(elems));
 
 		return elems;
 	}
@@ -31,12 +43,14 @@ namespace Utility {
 		std::string r = s.erase(s.find_last_not_of(drop) + 1);
 		return r.erase(0, r.find_first_not_of(drop));
 	}
-	inline std::string rtrim(std::string& s, const std::string& drop = TRIM_SPACE) {
+	inline std::string Rtrim(std::string& s, const std::string& drop = TRIM_SPACE) {
 		return s.erase(s.find_last_not_of(drop) + 1);
 	}
-	inline std::string ltrim(std::string& s, const std::string& drop = TRIM_SPACE) {
+	inline std::string Ltrim(std::string& s, const std::string& drop = TRIM_SPACE) {
 		return s.erase(0, s.find_first_not_of(drop));
 	}
-}
 
-#endif // !UTILITY_H
+	inline bool HasChar(const std::string& s, int index, char ch) {
+		return s.size() > index && s[index] == ch;
+	}
+}
