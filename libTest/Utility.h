@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <ctime>
+#include <fstream>
 
 #define PRINT_LOG 1
 
@@ -53,4 +54,25 @@ namespace Utility {
 	inline bool HasChar(const std::string& s, int index, char ch) {
 		return s.size() > index && s[index] == ch;
 	}
+
+	/// <summary>
+	/// read file at <c>path</c> and stores it in <paramref name="result"/> vector
+	/// </summary>
+	inline bool ReadText(const std::string& path, std::vector<std::string>& result) {
+		std::ifstream file(path.data());
+		if (!file.is_open()) {
+			std::cout << "The file does not exist in this path : " << path << std::endl;
+			return false;
+		}
+
+		std::string line;
+		while (std::getline(file, line)) {
+			result.emplace_back(line);
+		}
+
+		file.close();
+		return true;
+	}
+
+	//inline bool ReadBinary(const std::string& path, std::string& result) {}
 }
