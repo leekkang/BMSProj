@@ -8,26 +8,12 @@ namespace bms {
 	/// 
 	/// </summary>
 	struct TimeSegment {
-		TimeSegment(double time, double beat, double velocity) :
-					mCurTime(time), mCurBeat(beat), mCurVelocity(velocity) {}
+		TimeSegment(double time, int bpm, int beatNum, int beatDenum) :
+					mCurTime(time), mCurBpm(bpm), mCurBeat(beatNum, beatDenum) {}
 
-		double mCurTime;			// the time at which bpm changes (include start point)
-		double mCurBeat;			// the beat at which bpm changes (include start point)
-		double mCurVelocity;		// the value of delta beat per second. if it is stop point, the value is 0
-	};
-
-	/// <summary>
-	/// 
-	/// </summary>
-	struct Fraction {
-		int mNumerator;
-		int mDenominator;
-
-		Fraction(int numerator, int denominator) : mNumerator(numerator), mDenominator(denominator) {}
-
-		double GetValue() {
-			return (double)mNumerator / mDenominator;
-		}
+		double mCurTime;				// the time at which bpm changes (include start point)
+		double mCurBpm;					// the value of beat per minute. if it is stop point, the value is 0
+		Utility::Fraction mCurBeat;		// the beat at which bpm changes (include start point)
 	};
 
 	/// <summary>
@@ -40,7 +26,7 @@ namespace bms {
 
 		int mMeasure;			// the measure number, starting at 0 (corresponds to `#000`)
 		Channel mChannel;		// value of Channel enum
-		Fraction mFraction;		// the beat fraction inside the measure
+		Utility::Fraction mFraction;		// the beat fraction inside the measure
 		int mFracIndex;			// numerator of the fractional position inside the measure
 		int mFracDenom;			// denominator of the fractional position inside the measure
 		int mValue;				// the raw value of the BMS object

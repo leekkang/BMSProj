@@ -48,7 +48,7 @@ namespace bms {
 		// ----- get, set function -----
 
 		int GetPlayer() { return mPlayer; }
-		int GetBpm() { return mBpm; }
+		double GetBpm() { return mBpm; }
 		int GetLevel() { return mLevel; }
 		int GetRank() { return mRank; }
 		int GetTotal() { return mTotal; }
@@ -66,7 +66,6 @@ namespace bms {
 
 	//private:
 		int mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
-		int mBpm;					// beats per minute
 		int mLevel;					// music level ( 1 ~ 99 )
 		int mRank;					// judgement line difficulty. easy = 3, normal = 2, hard = 1, very hard = 0
 		int mDifficulty;			// easy,beginner,light = 0, normal,standard = 1, hard,hyper = 2, ex,another = 3, insane = 4
@@ -74,8 +73,9 @@ namespace bms {
 		int mEndNoteVal;			/// <summary> if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, this value direct wav file key in <see cref="mDicWav"/>. </summary>
 		LongnoteType mLongNoteType;	// longnote type.
 
-		int mMinBpm;
-		int mMaxBpm;
+		double mBpm;				// beats per minute
+		double mMinBpm;				// max bpm at variable bpm
+		double mMaxBpm;				// min bpm at variable bpm
 
 		std::string mGenre;
 		std::string mTitle;

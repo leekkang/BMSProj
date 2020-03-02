@@ -51,10 +51,10 @@ namespace bms {
 
 		// ----- get, set function -----
 
-		double GetBeat(int measure);
+		Utility::Fraction GetBeatInMeasure(int measure);
 
 	private:
-		/*uint16_t*/int mMaxMeasure;
+		/*uint16_t*/int mEndMeasure;
 
 		///<summary> a list of raw file data </summary>
 		std::vector<std::string> mListRaw;
@@ -63,16 +63,21 @@ namespace bms {
 		std::vector<Object> mListObj;
 		std::vector<Object> mListRawTimeSeg;
 
+		///<summary> a list of the cumulative number of bits per measure  </summary>
+		std::vector<Utility::Fraction> mListCumulativeBeat;
+
 		///<summary> key : wav file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicWav;
 		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
+
+
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, float> mDicStop;
 		///<summary> pair of BPM command number and data  </summary>
 		std::unordered_map<int, float> mDicBpm;
 		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, float> mDicTimeSignature;
+		std::unordered_map<int, Utility::Fraction> mDicTimeSignature;
 
 		std::vector<TimeSegment> mListTimeSeg;
 	};

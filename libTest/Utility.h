@@ -7,7 +7,7 @@
 #include <ctime>
 #include <fstream>
 
-#define PRINT_LOG 0
+#define PRINT_LOG 1
 
 #if PRINT_LOG
 #define __FILENAME__ (strrchr(__FILE__,'\\')+1)	// change full path to file name
@@ -55,13 +55,23 @@ namespace Utility {
 		return s.size() > index && s[index] == ch;
 	}
 
+	/// <summary> Find the greatest common divisor recursively (Euclid's Method) </summary>
+	constexpr int GCD(int m, int n) {
+		return n == 0 ? m : GCD(n, m % n);
+	}
+
+	/// <summary> Find the least common multiple </summary>
+	constexpr int LCM(int m, int n) {
+		return (m * n) / GCD(m, n);
+	}
+
 	/// <summary>
 	/// read file at <c>path</c> and stores it in <paramref name="result"/> vector
 	/// </summary>
 	inline bool ReadText(const std::string& path, std::vector<std::string>& result) {
 		std::ifstream file(path.data());
 		if (!file.is_open()) {
-			std::cout << "The file does not exist in this path : " << path << std::endl;
+			TRACE("The file does not exist in this path : " + path);
 			return false;
 		}
 
@@ -102,4 +112,135 @@ namespace Utility {
 
 		return (diff > 0) ? 1 : -1;
 	}
+
+	/// <summary> Data structures for fraction representation </summary>
+	struct Fraction {
+		int mNumerator;
+		int mDenominator;
+
+		constexpr static Fraction Zero() {
+			return Fraction();
+		}
+
+		constexpr Fraction() : mNumerator(0), mDenominator(1) {}
+		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
+		constexpr Fraction(const Fraction& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
+			//std::cout << "copy constructor" << std::endl;
+		}
+		// No different from copy...
+		// caution : if this object is constant and rhs is not defined as as constant, the copy constructor is executed.
+		constexpr Fraction(const Fraction&& rhs) : mNumerator(std::move(rhs.mNumerator)), mDenominator(std::move(rhs.mDenominator)) {
+			//std::cout << "move constructor" << std::endl;
+		}
+		// assignment is not allowed when this object is constant.. below overloading line only works in non-constant object
+		constexpr Fraction& operator=(const Fraction& rhs) {
+			if (this != &rhs) {
+				mNumerator = rhs.mNumerator;
+				mDenominator = rhs.mDenominator;
+			}
+			return *this;
+		}
+		constexpr Fraction& operator=(const Fraction&& rhs) {
+			if (this != &rhs) {
+				mNumerator = std::move(rhs.mNumerator);
+				mDenominator = std::move(rhs.mDenominator);
+			}
+			return *this;
+		}
+		// The const before the function body indicates whether the member variable can be changed.
+		constexpr bool operator==(const Fraction& rhs) const {
+			return mNumerator == rhs.mNumerator && mDenominator == rhs.mDenominator;
+		}
+		constexpr bool operator!=(const Fraction& rhs) const {
+			return !(*this == rhs);
+		}
+		constexpr Fraction& operator+=(const Fraction& rhs) {
+			if (rhs.mNumerator != 0) {
+				int lcm = LCM(mDenominator, rhs.mDenominator);
+				int n = lcm / mDenominator * mNumerator + lcm / rhs.mDenominator * rhs.mNumerator;
+				if (n == 0) {
+					Clear();
+					return *this;
+				}
+				int gcd = GCD(lcm, n);
+				mNumerator = n / gcd;
+				mDenominator = lcm / gcd;
+			}
+			return *this;
+		}
+		constexpr Fraction operator+(const Fraction& rhs) const {
+			return Fraction(*this) += rhs;
+		}
+		constexpr Fraction& operator-=(const Fraction& rhs) {
+			if (rhs.mNumerator != 0) {
+				int lcm = LCM(mDenominator, rhs.mDenominator);
+				int n = lcm / mDenominator * mNumerator - lcm / rhs.mDenominator * rhs.mNumerator;
+				if (n == 0) {
+					Clear();
+					return *this;
+				}
+				int gcd = GCD(lcm, n);
+				mNumerator = n / gcd;
+				mDenominator = lcm / gcd;
+			}
+			return *this;
+		}
+		constexpr Fraction operator-(const Fraction& rhs) const {
+			return Fraction(*this) -= rhs;
+		}
+		constexpr Fraction& operator*=(const Fraction& rhs) {
+			if (rhs.mNumerator != 0) {
+				int n = mNumerator * rhs.mNumerator;
+				int d = mDenominator * rhs.mDenominator;
+				int gcd = GCD(d, n);
+				mNumerator = n / gcd;
+				mDenominator = d / gcd;
+			} else {
+				Clear();
+			}
+			return *this;
+		}
+		constexpr Fraction operator*(const Fraction& rhs) const {
+			return Fraction(*this) *= rhs;
+		}
+		constexpr Fraction& operator*=(const int val) {
+			if (val != 0) {
+				int n = mNumerator * val;
+				int gcd = GCD(mDenominator, n);
+				mNumerator = n / gcd;
+				mDenominator /= gcd;
+			} else {
+				Clear();
+			}
+			return *this;
+		}
+		constexpr Fraction operator*(const int val) {
+			return Fraction(*this) *= val;
+		}
+		constexpr void Clear() {
+			mNumerator = 0;
+			mDenominator = 1;
+		}
+		constexpr double GetValue() {
+			return (double)mNumerator / mDenominator;
+		}
+	};
+
+	constexpr int Pow(int x, int p) {
+		return p > 1 ? x * Pow(x, p - 1) : p == 1 ? x : 1;
+	}
+
+	// template metaprogramming
+	/*template<int X, int P>
+	struct Pow {
+		enum { result = X * Pow<X, P - 1>::result };
+	};
+	template<int X>
+	struct Pow<X, 0> {
+		enum { result = 1 };
+	};
+	template<int X>
+	struct Pow<X, 1> {
+		enum { result = X };
+	};*/
 }
