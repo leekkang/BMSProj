@@ -2,51 +2,11 @@
 
 #include "Utility.h"
 #include "BMSEnums.h"
+#include "BMSObjects.h"
 
 #include <unordered_map>
 
 namespace bms {
-	/// <summary>
-	/// a data structure represents an object inside a <see cref="BMSBody"/> class
-	/// smallest unit in this data. music only + note + option
-	/// </summary>
-	class Object {
-	public:
-		Object(int measure, Channel channel, int fracIndex, int fracDenom, int val) :
-			mMeasure(measure), mChannel(channel), mFractionIndex(fracIndex), mFractionDenom(fracDenom), mValue(val) {}
-		~Object() = default;
-
-		Object(const Object&) = delete;
-		Object& operator=(const Object&) = delete;
-		Object(Object&&) noexcept = default;
-		Object& operator=(Object&&) noexcept = default;
-
-		/// <summary>
-		/// check <paramref name="other"/> has equal measure, channel, fraction
-		/// </summary>
-		bool IsSameBeat(Object& other) {
-			return other.mMeasure == mMeasure && other.mChannel == mChannel &&
-				other.mFractionIndex == mFractionIndex && other.mFractionDenom == mFractionDenom;
-		}
-
-		// ----- get, set function -----
-
-		int GetMeasure() { return mMeasure; }
-		Channel GetChannel() { return mChannel; }
-		int GetFracIndex() { return mFractionIndex; }
-		int GetFracDenom() { return mFractionDenom; }
-		int GetValue() { return mValue; }
-
-		//void SetValue(int val) { mValue = val; }
-
-	private:
-		int mMeasure;			// the measure number, starting at 0 (corresponds to `#000`)
-		Channel mChannel;		// value of Channel enum
-		int mFractionIndex;		// numerator of the fractional position inside the measure
-		int mFractionDenom;		// denominator of the fractional position inside the measure
-		int mValue;				// the raw value of the BMS object
-	};
-
 	/// <summary>
 	/// a data structure include all information of <see cref="mPath"/> file
 	/// this class has <see cref="BMS::SongInfo"/> object and other data lists as member
@@ -55,7 +15,7 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSData() { std::cout << "BMSData constructor" << std::endl; };
+		BMSData(std::string);
 		~BMSData() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSData)
 		//BMSData(const BMSData&) = delete;
@@ -104,22 +64,25 @@ namespace bms {
 
 		void SetFilePath(std::string& path) { mPath = path; }
 
-	private:
-		int mPlayer = 0;				// single = 1, 2p = 2, double = 3 (not implemented)
-		int mBpm = 0;					// beats per minute
-		int mLevel = 0;					// music level ( 1 ~ 99 )
-		int mRank = 2;					// judgement line difficulty. easy = 3, normal = 2, hard = 1, very hard = 0
-		int mDifficulty = 0;			// easy,beginner,light = 0, normal,standard = 1, hard,hyper = 2, ex,another = 3, insane = 4
-		int mTotal = 200;				// guage value
-		int mEndNoteVal = 0;			/// <summary> if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, this value direct wav file key in <see cref="mDicWav"/>. </summary>
-		LongnoteType mLongNoteType = LongnoteType::RDM_TYPE_1;		// longnote type.
+	//private:
+		int mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
+		int mBpm;					// beats per minute
+		int mLevel;					// music level ( 1 ~ 99 )
+		int mRank;					// judgement line difficulty. easy = 3, normal = 2, hard = 1, very hard = 0
+		int mDifficulty;			// easy,beginner,light = 0, normal,standard = 1, hard,hyper = 2, ex,another = 3, insane = 4
+		int mTotal;					// guage value
+		int mEndNoteVal;			/// <summary> if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, this value direct wav file key in <see cref="mDicWav"/>. </summary>
+		LongnoteType mLongNoteType;	// longnote type.
 
-		std::string mGenre = "";
-		std::string mTitle = "";
-		std::string mArtist = "";
+		int mMinBpm;
+		int mMaxBpm;
 
-		std::string mStageFile = "";	// loading image file name when music ready
-		std::string mBannerFile = "";	// banner image file name of inform music or team
+		std::string mGenre;
+		std::string mTitle;
+		std::string mArtist;
+
+		std::string mStageFile;		// loading image file name when music ready
+		std::string mBannerFile;	// banner image file name of inform music or team
 
 		std::string mPath;
 
@@ -130,6 +93,7 @@ namespace bms {
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicWav;
 		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
+
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, float> mDicStop;
 		///<summary> pair of BPM command number and data  </summary>
@@ -137,5 +101,6 @@ namespace bms {
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, float> mDicTimeSignature;
 
+		std::vector<TimeSegment> mListTimeSeg;
 	};
 }

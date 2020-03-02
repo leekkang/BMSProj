@@ -1,35 +1,22 @@
 #include "pch.h"
-#include "BMSData.h"
+#include "BMSDecryptor.h"
 
 using namespace bms;
-
-BMSData::BMSData(std::string path) : mPlayer(1), mRank(2), mTotal(200), mLongNoteType(LongnoteType::RDM_TYPE_1) {
-	std::cout << "BMSData constructor" << std::endl;
-
-	// Do not use it if class contains pointer variables.
-	// I don't know why below link throw an error that says an access violation.
-	// reference : https://www.sysnet.pe.kr/2/0/4
-	//memset(((char *)this) + 4, 0, sizeof(BMSData) - 4);
-	// Do not use it if class contains std::vector..!
-	//memset(this, 0, sizeof(BMSData));
-
-	mPath = path;
-}
 
 /// <summary>
 /// build using line in <paramref name="lines"/> list for fill data in header or body
 /// </summary>
 /// <returns> return true if all line is correctly saved </returns>
-bool BMSData::Build(std::vector<std::string>& lines) {
-	if (lines.size() == 0) {
-		TRACE("This file is empty.");
+bool BMSDecryptor::Build(BMSData& bmsData) {
+	if (mListRaw.size() == 0) {
+		TRACE("Bms file is empty.");
 		return false;
 	}
 
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.
 	bool isHeader = true;
-	for (std::string& line : lines) {
+	for (std::string& line : mListRaw) {
 		// check incorrect line
 		if (line.empty() || line[0] != '#') {
 			continue;
@@ -41,65 +28,107 @@ bool BMSData::Build(std::vector<std::string>& lines) {
 		}
 
 		if (isHeader) {
-			ParseHeader(Utility::Rtrim(line));
+			ParseHeader(Utility::Rtrim(line), bmsData);
 		} else {
 			ParseBody(Utility::Rtrim(line));
 		}
 	}
 
 	// 2. organize bpm, time-related data as TimeSegment struct list
+	std::sort(mListRawTimeSeg.begin(), mListRawTimeSeg.end(), [](Object lhs, Object rhs) {
+		if (lhs.mMeasure == rhs.mMeasure) {
+			if (lhs.mChannel == rhs.mChannel) {
+				return lhs.mFraction.GetValue() < rhs.mFraction.GetValue();
+				//return (float)lhs.mFracIndex / lhs.mFracDenom < (float)rhs.mFracIndex / rhs.mFracDenom;
+			} else {
+				return lhs.mChannel < rhs.mChannel;
+			}
+		} else {
+			return lhs.mMeasure < rhs.mMeasure;
+		}
+	});
 
+	double addedSec = 0;
+	double curBpm = bmsData.mBpm;
+	int prevBeat = 0;
+	int prevMeasure = 0;
+	Fraction prevFrac(0, 1);
+	for (int i = 0; i < mListRawTimeSeg.size(); ++i) {
+		Object& obj = mListRawTimeSeg[i];
+		int curMeasure = obj.mMeasure;
+		for (int j = prevMeasure; j < curMeasure; ++j) {
+			prevBeat += GetBeat(j);
+		}
+		double curBeat = prevBeat + obj.mFraction.GetValue() - prevFrac.GetValue());
+		double deltaBeat = curBpm / 60;		// equal to beat per second
+		mListTimeSeg.emplace_back(curBeat / deltaBeat, curBeat, deltaBeat);
+
+		if (obj.mChannel == Channel::)
+
+		TRACE("TimeSegment beat : " + std::to_string(measure) + ", second : " + std::to_string(measure) + ", velocity : " + std::to_string(val))
+	}
 
 	return true;
 }
 
+double BMSDecryptor::GetBeat(int measure) {
+	return (mDicTimeSignature.find(measure) == mDicTimeSignature.end() ? 1 : mDicTimeSignature[measure]) * 4;
+}
 
 /// <summary>
 /// parse <paramref name="line"/> for fill header data and store parsed line in appropriate variable
 /// </summary>
-void BMSData::ParseHeader(std::string&& line) noexcept {
+void BMSDecryptor::ParseHeader(std::string&& line, BMSData& bmsData) noexcept {
 	if (line.rfind("#PLAYER", 0) == 0 && line.size() > 8) {
-		mPlayer = std::stoi(line.substr(8));
+		bmsData.mPlayer = std::stoi(line.substr(8));
 	} else if (line.rfind("#GENRE", 0) == 0 && line.size() > 7) {
-		mGenre = line.substr(7);
+		bmsData.mGenre = line.substr(7);
 	} else if (line.rfind("#TITLE", 0) == 0 && line.size() > 7) {
-		mTitle = line.substr(7);
+		bmsData.mTitle = line.substr(7);
 	} else if (line.rfind("#ARTIST", 0) == 0 && line.size() > 8) {
-		mArtist = line.substr(8);
+		bmsData.mArtist = line.substr(8);
 	} else if (line.rfind("#BPM", 0) == 0) {
 		if (line[4] == ' ' && line.size() > 5) {
-			mBpm = std::stoi(line.substr(5));
+			bmsData.mBpm = bmsData.mMinBpm = bmsData.mMaxBpm = std::stoi(line.substr(5));
 		} else if (line.size() > 7) {	// #BPMXX
 			int key = std::stoi(line.substr(4, 2), nullptr, 36);
 			mDicBpm[key] = std::stof(line.substr(7));
 		}
 	} else if (line.rfind("#PLAYLEVEL", 0) == 0 && line.size() > 11) {
-		mLevel = std::stoi(line.substr(11));
+		bmsData.mLevel = std::stoi(line.substr(11));
 	} else if (line.rfind("#RANK", 0) == 0 && line.size() > 6) {
-		mRank = std::stoi(line.substr(6));
+		bmsData.mRank = std::stoi(line.substr(6));
 	} else if (line.rfind("#TOTAL", 0) == 0 && line.size() > 7) {
-		mTotal = std::stoi(line.substr(7));
+		bmsData.mTotal = std::stoi(line.substr(7));
 	} else if (line.rfind("#STAGEFILE", 0) == 0 && line.size() > 11) {
-		mStageFile = line.substr(11);
+		bmsData.mStageFile = line.substr(11);
 	} else if (line.rfind("#BANNER", 0) == 0 && line.size() > 8) {
-		mBannerFile = line.substr(8);
+		bmsData.mBannerFile = line.substr(8);
 	} else if (line.rfind("#DIFFICULTY", 0) == 0 && line.size() > 12) {
-		mDifficulty = std::stoi(line.substr(12));
+		bmsData.mDifficulty = std::stoi(line.substr(12));
 	} else if ((line.rfind("#WAV", 0) == 0 || line.rfind("#BMP", 0) == 0) && line.size() > 7) {
 		int key = std::stoi(line.substr(4, 2), nullptr, 36);
 		std::string name = line.substr(7);
-		AddFileToDic(line[1] == 'W', key, name);
+		std::string ext = name.substr(name.size() - 3, 3);
+		if (line[1] == 'W') {
+			//mDicWav[key] = std::pair<std::string, std::string>(val, ext);
+			//mDicWav.emplace(key, std::make_pair(val, ext));
+			mDicWav[key] = std::make_pair(std::move(name), std::move(ext));
+		} else {
+			mDicBmp[key] = std::make_pair(std::move(name), std::move(ext));
+		}
+		TRACE("Store dictionary element : " + std::to_string(key) + ", " + val);
 	} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
 		int key = std::stoi(line.substr(5, 2), nullptr, 36);
 		mDicStop[key] = std::stof(line.substr(8));
 	} else if (line.rfind("#LNTYPE", 0) == 0 && line.size() > 8) {
 		LongnoteType val = static_cast<LongnoteType>(std::stoi(line.substr(8)));
 		if (val == LongnoteType::RDM_TYPE_1 || val == LongnoteType::MGQ_TYPE) {
-			mLongNoteType = val;
+			bmsData.mLongNoteType = val;
 		}
 	} else if (line.rfind("#LNOBJ", 0) == 0 && line.size() > 7) {
 		int key = std::stoi(line.substr(7), nullptr, 36);
-		mLongNoteType = LongnoteType::RDM_TYPE_2;
+		bmsData.mLongNoteType = LongnoteType::RDM_TYPE_2;
 	} else {
 		TRACE("This line is not in the correct format : " + line)
 			return;
@@ -110,11 +139,11 @@ void BMSData::ParseHeader(std::string&& line) noexcept {
 /// <summary>
 /// parse <paramref name="line"/> for fill body data and store parsed line in appropriate variable
 /// </summary>
-void BMSData::ParseBody(std::string&& line) noexcept {
+void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 	// example line -> #00116:0010F211
 	if (line.size() < 9 || line[6] != ':') {
 		TRACE("This data is not in the correct format : " + line)
-		return;
+			return;
 	} else if (line.size() == 9 && line[7] == '0' && line[8] == '0') {
 		// unnecessary line. -> #xxxxx:00
 		return;
@@ -122,11 +151,14 @@ void BMSData::ParseBody(std::string&& line) noexcept {
 
 	int measure = std::stoi(line.substr(1, 3));
 	Channel channel = static_cast<Channel>(std::stoi(line.substr(4, 2), nullptr, 36));
+
+	mMaxMeasure = measure > mMaxMeasure ? measure : mMaxMeasure;
+
 	// create time signature dictionary for calculate beat
 	if (channel == Channel::MEASURE_LENGTH) {
 		mDicTimeSignature[measure] = std::stof(line.substr(7));
 		TRACE("Add TimeSignature : " + std::to_string(measure) + ", length : " + std::to_string(mDicTimeSignature[measure]))
-		return;
+			return;
 	}
 
 	clock_t s;
@@ -141,11 +173,14 @@ void BMSData::ParseBody(std::string&& line) noexcept {
 
 		if (channel == Channel::BGM) {
 			mListObj.emplace_back(measure, channel, i, item, val);
+		} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
+			// add object to time segment list
+			mListRawTimeSeg.emplace_back(measure, channel, i, item, val);
 		} else {
 			// overwrite the value (erase and repush)
 			//Object tmp(measure, channel, i, item, val);
 			bool isChanged = false;
-			for (int j = mListObj.size() - 1; j >= 0 ; --j) {
+			for (int j = mListObj.size() - 1; j >= 0; --j) {
 				Object& obj = mListObj[j];
 				if (obj.mMeasure != measure)
 					break;
@@ -172,17 +207,8 @@ void BMSData::ParseBody(std::string&& line) noexcept {
 }
 
 
+
 /// <summary> add parsed wav or bmp file to dictionary </summary>
 /// <param name="bIsWav"/> flag whether this file is wav or bmp </param>
-void BMSData::AddFileToDic(bool bIsWav, int key, const std::string& val) {
-	std::string ext = val.substr(val.size() - 3, 3);
-	if (bIsWav) {
-		//mDicWav[key] = std::pair<std::string, std::string>(val, ext);
-		//mDicWav.emplace(key, std::make_pair(val, ext));
-		mDicWav[key] = std::make_pair(std::move(val), std::move(ext));
-		TRACE("Store wav element : " + std::to_string(key) + ", " + val);
-	} else {
-		mDicBmp[key] = std::make_pair(std::move(val), std::move(ext));
-		TRACE("Store bmp element : " + std::to_string(key) + ", " + val);
-	}
+void BMSDecryptor::AddFileToDic(bool bIsWav, int key, const std::string& val) {
 }

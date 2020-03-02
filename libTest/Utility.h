@@ -7,7 +7,7 @@
 #include <ctime>
 #include <fstream>
 
-#define PRINT_LOG 1
+#define PRINT_LOG 0
 
 #if PRINT_LOG
 #define __FILENAME__ (strrchr(__FILE__,'\\')+1)	// change full path to file name
@@ -51,7 +51,7 @@ namespace Utility {
 		return s.erase(0, s.find_first_not_of(drop));
 	}
 
-	inline bool HasChar(const std::string& s, int index, char ch) {
+	inline bool HasChar(const std::string& s, size_t index, char ch) {
 		return s.size() > index && s[index] == ch;
 	}
 
@@ -75,4 +75,31 @@ namespace Utility {
 	}
 
 	//inline bool ReadBinary(const std::string& path, std::string& result) {}
+
+	inline bool CompareDoubleSimple(double x, double y, double absTolerance = (1.0e-8)) {
+		return fabs(x - y) <= absTolerance;
+	}
+
+	// Absolute Compare + Unit in the last place(ULP)
+	// source : https://m.blog.naver.com/PostView.nhn?blogId=devmachine&logNo=220142313114&targetKeyword=&targetRecommendationCode=1
+	inline int CompareDoubleAbsoulteAndUlps(double x,
+											double y,
+											double absTolerance = (1.0e-8),
+											int ulpsTolerance = 4) {
+		double diff = x - y;
+		if (fabs(diff) <= absTolerance)
+			return 0;
+
+		__int64 nx = *((__int64*)&x);
+		__int64 ny = *((__int64*)&y);
+
+		if ((nx & 0x8000000000000000) != (ny & 0x8000000000000000))
+			return (diff > 0) ? 1 : -1;
+
+		__int64 ulpsDiff = nx - ny;
+		if ((ulpsDiff >= 0 ? ulpsDiff : -ulpsDiff) <= ulpsTolerance)
+			return 0;
+
+		return (diff > 0) ? 1 : -1;
+	}
 }
