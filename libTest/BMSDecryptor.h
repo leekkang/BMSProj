@@ -42,35 +42,44 @@ namespace bms {
 		/// parse <paramref name="line"/> for fill body data and store parsed line in temporary data structure
 		/// </summary>
 		void ParseBody(std::string&& line) noexcept;
+		/// <summary>
+		/// make time segment list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::TimeSegment"/> objects
+		/// </summary>
+		void MakeTimeSegment(BMSData& bmsData);
+		/// <summary>
+		/// make note list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::Note"/> objects
+		/// </summary>
+		void MakeNoteList(BMSData& bmsData);
+
+		void Play();
+		void CalculateBeat();
 		/// <summary> add parsed wav or bmp file to dictionary </summary>
 		/// <param name="bIsWav"/> flag whether this file is wav or bmp </param>
 		void AddFileToDic(bool bIsWav, int key, const std::string& val);
 
-		void Play();
-		void CalculateBeat();
-
 		// ----- get, set function -----
 
+		/// <summary>
+		/// get Fraction that stored in <see cref="mDicTimeSignature"/> of <see cref="BMSData"/> object.
+		/// </summary>
 		Utility::Fraction GetBeatInMeasure(int measure);
+		/// <summary>
+		/// Function that returns the total number of beats to a point
+		/// </summary>
+		Utility::Fraction GetBeats(int measure, const Utility::Fraction& frac);
 
 	private:
 		/*uint16_t*/int mEndMeasure;
 
-		///<summary> a list of raw file data </summary>
+		///<summary> a list of raw file data not yet parsed </summary>
 		std::vector<std::string> mListRaw;
 
 		///<summary> a list of data objects </summary>
 		std::vector<Object> mListObj;
+		///<summary> a list of temporary time data objects </summary>
 		std::vector<Object> mListRawTimeSeg;
 
-		///<summary> a list of the cumulative number of bits per measure  </summary>
-		std::vector<Utility::Fraction> mListCumulativeBeat;
-
-		///<summary> key : wav file mapping value, value : pair of wav file name and extension </summary>
-		std::unordered_map<int, std::pair<std::string, std::string>> mDicWav;
-		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
-		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
-
+		std::unordered_map<int, std::vector<Object>> mDicObj;
 
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, float> mDicStop;
@@ -78,7 +87,5 @@ namespace bms {
 		std::unordered_map<int, float> mDicBpm;
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, Utility::Fraction> mDicTimeSignature;
-
-		std::vector<TimeSegment> mListTimeSeg;
 	};
 }

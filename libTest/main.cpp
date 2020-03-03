@@ -35,12 +35,9 @@ public:
 int main() {
 	bms::BMSAdapter adapter;
 	clock_t s = clock();
-	adapter.Make("./engine.bms");
+	adapter.Make("./test.bme");
 	TRACE("make time(ms) : " + std::to_string(clock() - s))
 	std::cout << "make time(ms) : " << std::to_string(clock() - s) << std::endl;
-
-	//d.Make("path");
-	std::cout << "end" << std::endl;
 
 	return 0;
 }

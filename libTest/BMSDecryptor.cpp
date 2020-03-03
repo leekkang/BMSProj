@@ -15,6 +15,7 @@ bool BMSDecryptor::Build(BMSData& bmsData) {
 
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.
+	clock_t s = clock();
 	bool isHeader = true;
 	for (std::string& line : mListRaw) {
 		// check incorrect line
@@ -33,74 +34,47 @@ bool BMSDecryptor::Build(BMSData& bmsData) {
 			ParseBody(Utility::Rtrim(line));
 		}
 	}
+	std::cout << "raw object make time(ms) : " << clock() - s << std::endl;
 
 	// 2. Create a list that stores the cumulative number of bits per measure 
 	//	  with the number of measures found when body parsing.
+	s = clock();
 	Utility::Fraction frac;
 	for (int i = 0; i <= mEndMeasure; ++i) {
 		frac += GetBeatInMeasure(i);
-		mListCumulativeBeat.emplace_back(frac.mNumerator, frac.mDenominator);
+		bmsData.mListCumulativeBeat.emplace_back(frac.mNumerator, frac.mDenominator);
 	}
+	std::cout << "cumulative beat make time(ms) : " << clock() - s << std::endl;
 
-	// 3. organize bpm, time-related data as TimeSegment struct list
-	std::sort(mListRawTimeSeg.begin(), mListRawTimeSeg.end(), [](Object lhs, Object rhs) {
+	// 3. organize bpm, time-related data as raw TimeSegment struct list
+	std::function<bool(Object, Object)> compare = [](Object lhs, Object rhs) {
 		if (lhs.mMeasure == rhs.mMeasure) {
 			if (lhs.mChannel == rhs.mChannel) {
 				return (rhs.mFraction - lhs.mFraction).GetValue() > 0;
-				//return (float)lhs.mFracIndex / lhs.mFracDenom < (float)rhs.mFracIndex / rhs.mFracDenom;
 			} else {
 				return lhs.mChannel < rhs.mChannel;
 			}
 		} else {
 			return lhs.mMeasure < rhs.mMeasure;
 		}
-	});
+	};
+	s = clock();
+	std::sort(mListRawTimeSeg.begin(), mListRawTimeSeg.end(), compare);
+	std::cout << "raw time segment sort time(ms) : " << clock() - s << std::endl;
 
-	double curTime = 0;
-	double curBpm = bmsData.mBpm;
-	Utility::Fraction prevBeat;	// prevBeat + prevFrac
-	// push initial time segment
-	mListTimeSeg.emplace_back(0, curBpm, 0, 1);
-	TRACE("TimeSegment beat : 0, second : 0, bpm : " + std::to_string(curBpm))
-	for (int i = 0; i < mListRawTimeSeg.size(); ++i) {
-		Object& obj = mListRawTimeSeg[i];
-		int curMeasure = obj.mMeasure;
+	// 4. Create a list that stores the change time point. include time, beats, bpm
+	MakeTimeSegment(bmsData);
 
-		// Beats are only affected by the length of the measure.
-		Utility::Fraction curBeatSum = 
-			(curMeasure == 0 ? Utility::Fraction::Zero() :
-							   mListCumulativeBeat[curMeasure - 1]) + obj.mFraction * GetBeatInMeasure(curMeasure);
-		//double velocity = curBpm / 60;		// equal to beat per second
-		curTime += (curBeatSum - prevBeat).GetValue() * 60 / curBpm;
-
-		if (obj.mChannel == Channel::STOP_BY_KEY && mDicStop.count(obj.mValue) != 0) {
-			// STOP value is the time value of 1/192 of a whole note in 4/4 meter be the unit 1
-			// 48 == 1 beat
-			mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
-			// value / 48 = beats to stop, time = beat * (60/bpm), 
-			// --> stop time = (value * 5) / (bpm * 4)
-			curTime += (obj.mValue * 5) / (curBpm * 4);
-			mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
-		} else if (obj.mChannel == Channel::CHANGE_BPM || 
-				   (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
-			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mDicBpm[obj.mValue];
-			bmsData.mMinBpm = std::min(bmsData.mMinBpm, curBpm);
-			bmsData.mMaxBpm = std::max(bmsData.mMaxBpm, curBpm);
-			mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
-		}
-
-		prevBeat = curBeatSum;
-		TRACE("TimeSegment beat : " + std::to_string(curBeatSum.GetValue()) + ", second : " + std::to_string(curTime) + ", bpm : " + std::to_string(curBpm))
+	// 5. Read a list of objects and create a list that stores information such as time and beats of the note.
+	s = clock();
+	for (int i = 0; i <= mEndMeasure; ++i) { 
+		std::sort(mDicObj[i].begin(), mDicObj[i].end(), compare);
+		std::cout << "raw object sort time(ms) : " << clock() - s << std::endl;
 	}
-
-	// 4. Read a list of objects and create a list that stores information such as time and beats of the note.
-
+	//std::sort(mListObj.begin(), mListObj.end(), compare);
+	std::cout << "raw object sort time(ms) : " << clock() - s << std::endl;
 
 	return true;
-}
-
-Utility::Fraction BMSDecryptor::GetBeatInMeasure(int measure) {
-	return mDicTimeSignature.count(measure) == 0 ? Utility::Fraction(4, 1) : mDicTimeSignature[measure] * 4;
 }
 
 /// <summary>
@@ -141,9 +115,9 @@ void BMSDecryptor::ParseHeader(std::string&& line, BMSData& bmsData) noexcept {
 		if (line[1] == 'W') {
 			//mDicWav[key] = std::pair<std::string, std::string>(val, ext);
 			//mDicWav.emplace(key, std::make_pair(val, ext));
-			mDicWav[key] = std::make_pair(std::move(name), std::move(ext));
+			bmsData.mDicWav[key] = std::make_pair(std::move(name), std::move(ext));
 		} else {
-			mDicBmp[key] = std::make_pair(std::move(name), std::move(ext));
+			bmsData.mDicBmp[key] = std::make_pair(std::move(name), std::move(ext));
 		}
 		TRACE("Store dictionary element : " + std::to_string(key) + ", " + name);
 	} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
@@ -202,8 +176,8 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 			return;
 	}
 
-	clock_t s;
-	s = clock();
+	// Separate each beat fragment into objects with information.
+	std::vector<Object> objs = mDicObj[measure];
 	int item = line.substr(7).size() / 2;
 	for (int i = 0; i < item; ++i) {
 		// convert value to base-36, if channel is CHANGE_BPM, convert value to hex
@@ -213,40 +187,106 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 		}
 
 		if (channel == Channel::BGM) {
-			mListObj.emplace_back(measure, channel, i, item, val);
+			//mListObj.emplace_back(val, measure, channel, i, item);
+			objs.emplace_back(val, measure, channel, i, item);
 		} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
 			// add object to time segment list
-			mListRawTimeSeg.emplace_back(measure, channel, i, item, val);
+			mListRawTimeSeg.emplace_back(val, measure, channel, i, item);
 		} else {
 			// overwrite the value (erase and repush)
-			//Object tmp(measure, channel, i, item, val);
 			bool isChanged = false;
-			for (int j = mListObj.size() - 1; j >= 0; --j) {
-				Object& obj = mListObj[j];
-				if (obj.mMeasure != measure)
-					break;
+			//for (int j = mListObj.size() - 1; j >= 0; --j) {
+			//	Object& obj = mListObj[j];
+			//	if (obj.mMeasure != measure)
+			//		break;
 
+			//	// overwrite value. very, very rarely happen
+			//	if (obj.mChannel == channel && Utility::Fraction(i, item) == obj.mFraction) {
+			//		TRACE("object change, measure : " + std::to_string(measure) + ", fraction : " +
+			//			    std::to_string(i) + " / " + std::to_string(item) + ", val : " + std::to_string(val));
+			//		obj.mValue = val;
+			//		isChanged = true;
+			//		break;
+			//	}
+			//}
+			for (int j = objs.size() - 1; j >= 0; --j) {
+				Object& obj = objs[j];
 				// overwrite value. very, very rarely happen
-				if (obj.mChannel == channel && Utility::CompareDoubleSimple((double)i / obj.mFracIndex, (double)item / obj.mFracDenom)) {
+				if (obj.mChannel == channel && Utility::Fraction(i, item) == obj.mFraction) {
 					TRACE("object change, measure : " + std::to_string(measure) + ", fraction : " +
-						    std::to_string(i) + " / " + std::to_string(item) + ", val : " + std::to_string(val));
+						  std::to_string(i) + " / " + std::to_string(item) + ", val : " + std::to_string(val));
 					obj.mValue = val;
 					isChanged = true;
-					//mListObj.erase(mListObj.begin() + j);
 					break;
 				}
 			}
 			if (!isChanged) {
-				mListObj.emplace_back(measure, channel, i, item, val);
-				//mListObj.push_back(std::move(tmp));
+				//mListObj.emplace_back(val, measure, channel, i, item);
+				objs.emplace_back(val, measure, channel, i, item);
 			}
 		}
-		//TRACE("object create, measure : " + std::to_string(measure) + ", fraction : " +
-			  //std::to_string(i) + " / " + std::to_string(item) + ", val : " + std::to_string(val))
 	}
-	TRACE("vector size : " + std::to_string(mListObj.size()) + ", time(ms) : " + std::to_string(clock() - s))
 }
 
+/// <summary>
+/// make time segment list contain <see cref="bms::TimeSegment"/> object
+/// </summary>
+void BMSDecryptor::MakeTimeSegment(BMSData& bmsData) {
+	double curTime = 0;
+	double curBpm = bmsData.mBpm;
+	Utility::Fraction prevBeat;
+
+	// push initial time segment
+	bmsData.mListTimeSeg.emplace_back(0, curBpm, 0, 1);
+	TRACE("TimeSegment beat : 0, second : 0, bpm : " + std::to_string(curBpm))
+
+	for (int i = 0; i < mListRawTimeSeg.size(); ++i) {
+		Object& obj = mListRawTimeSeg[i];
+		int curMeasure = obj.mMeasure;
+
+		// Beats are only affected by the length of the measure.
+		Utility::Fraction curBeatSum =
+			(curMeasure == 0 ? Utility::Fraction::Zero() : bmsData.mListCumulativeBeat[curMeasure - 1]) + 
+				obj.mFraction * GetBeatInMeasure(curMeasure);
+		curTime += (curBeatSum - prevBeat).GetValue() * 60 / curBpm;
+
+		if (obj.mChannel == Channel::STOP_BY_KEY && mDicStop.count(obj.mValue) != 0) {
+			// STOP value is the time value of 1/192 of a whole note in 4/4 meter be the unit 1
+			// 48 == 1 beat
+			bmsData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			// value / 48 = beats to stop, time = beat * (60/bpm), 
+			// --> stop time = (value * 5) / (bpm * 4)
+			curTime += (obj.mValue * 5) / (curBpm * 4);
+			bmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+		} else if (obj.mChannel == Channel::CHANGE_BPM ||
+				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
+			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mDicBpm[obj.mValue];
+			bmsData.mMinBpm = std::min(bmsData.mMinBpm, curBpm);
+			bmsData.mMaxBpm = std::max(bmsData.mMaxBpm, curBpm);
+			bmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+		}
+
+		prevBeat = curBeatSum;
+		TRACE("TimeSegment beat : " + std::to_string(curBeatSum.GetValue()) + ", second : " + std::to_string(curTime) + ", bpm : " + std::to_string(curBpm))
+	}
+}
+
+/// <summary>
+/// Function that returns the number of beats of a particular measure
+/// stored in <see cref="mDicTimeSignature"/> of <see cref="BMSData"/> object.
+/// </summary>
+Utility::Fraction BMSDecryptor::GetBeatInMeasure(int measure) {
+	return mDicTimeSignature.count(measure) == 0 ? Utility::Fraction(4, 1) : mDicTimeSignature[measure] * 4;
+}
+/// <summary>
+/// Function that returns the total number of beats to a point
+/// </summary>
+Utility::Fraction BMSDecryptor::GetBeats(int measure, const Utility::Fraction& frac) {
+	/*if 
+	(measure == 0 ? Utility::Fraction::Zero() :
+	 bmsData.mListCumulativeBeat[measure - 1]) + frac * GetBeatInMeasure(curMeasure);*/
+	return mDicTimeSignature.count(measure) == 0 ? Utility::Fraction(4, 1) : mDicTimeSignature[measure] * 4;
+}
 
 
 /// <summary> add parsed wav or bmp file to dictionary </summary>

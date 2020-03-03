@@ -5,7 +5,7 @@
 
 namespace bms {
 	/// <summary>
-	/// 
+	/// a data structure that store change timing point include sec, bpm, beats at a certain point
 	/// </summary>
 	struct TimeSegment {
 		TimeSegment(double time, int bpm, int beatNum, int beatDenum) :
@@ -21,16 +21,40 @@ namespace bms {
 	/// smallest unit in this data. music only + note + option
 	/// </summary>
 	struct Object {
-		Object(int measure, Channel channel, int fracIndex, int fracDenom, int val) :
-			mMeasure(measure), mChannel(channel), mFraction(fracIndex, fracDenom), mFracIndex(fracIndex), mFracDenom(fracDenom), mValue(val) {}
+		Object(int val, int measure, Channel channel, int fracIndex, int fracDenom) :
+			mValue(val), mMeasure(measure), mChannel(channel), mFraction(fracIndex, fracDenom) {}
 
-		int mMeasure;			// the measure number, starting at 0 (corresponds to `#000`)
-		Channel mChannel;		// value of Channel enum
-		Utility::Fraction mFraction;		// the beat fraction inside the measure
-		int mFracIndex;			// numerator of the fractional position inside the measure
-		int mFracDenom;			// denominator of the fractional position inside the measure
-		int mValue;				// the raw value of the BMS object
+		int mValue;						// the raw value of the BMS object
+		int mMeasure;					// the measure number, starting at 0 (corresponds to `#000`)
+		Channel mChannel;				// value of Channel enum
+		Utility::Fraction mFraction;	// the beat fraction inside the measure
 	};
+
+	/// <summary>
+	/// 
+	/// </summary>
+	class Note {
+	public:
+		// ----- constructor, operator overloading -----
+
+		Note() = default;
+		~Note() = default;
+
+		Note(const Note&) = delete;
+		Note& operator=(const Note&) = delete;
+		Note(Note&&) noexcept = default;
+		Note& operator=(Note&&) noexcept = default;
+
+		// ----- user access function -----
+
+
+		// ----- get, set function -----
+
+
+	private:
+	};
+
+
 
 	/// <summary>
 	/// a data structure represents an object include raw information of bms
@@ -64,29 +88,4 @@ namespace bms {
 	//	int mFracDenom;		// denominator of the fractional position inside the measure
 	//	int mValue;				// the raw value of the BMS object
 	//};
-
-
-	/// <summary>
-	/// 
-	/// </summary>
-	class Note {
-	public:
-		// ----- constructor, operator overloading -----
-
-		Note() = default;
-		~Note() = default;
-
-		Note(const Note&) = delete;
-		Note& operator=(const Note&) = delete;
-		Note(Note&&) noexcept = default;
-		Note& operator=(Note&&) noexcept = default;
-
-		// ----- user access function -----
-
-
-		// ----- get, set function -----
-
-
-	private:
-	};
 }

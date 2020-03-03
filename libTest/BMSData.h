@@ -25,25 +25,6 @@ namespace bms {
 
 		// ----- user access function -----
 
-		/// <summary>
-		/// build using line in <paramref name="lines"/> list for fill data in header or body
-		/// </summary>
-        /// <returns> return true if all line is correctly saved </returns>
-		bool Build(std::vector<std::string>& lines);
-		/// <summary>
-		/// parse <paramref name="line"/> for fill header data and store parsed line in appropriate variable
-		/// </summary>
-		void ParseHeader(std::string&& line) noexcept;
-		/// <summary>
-		/// parse <paramref name="line"/> for fill body data and store parsed line in appropriate variable
-		/// </summary>
-		void ParseBody(std::string&& line) noexcept;
-		/// <summary> add parsed wav or bmp file to dictionary </summary>
-		/// <param name="bIsWav"/> flag whether this file is wav or bmp </param>
-		void AddFileToDic(bool bIsWav, int key, const std::string& val);
-
-		void Play();
-		void CalculateBeat();
 
 		// ----- get, set function -----
 
@@ -61,8 +42,6 @@ namespace bms {
 		const std::string& GetBanner() { return mBannerFile; }
 
 		const std::string& GetFilePath() { return mPath; }
-
-		void SetFilePath(std::string& path) { mPath = path; }
 
 	//private:
 		int mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
@@ -94,13 +73,9 @@ namespace bms {
 		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
 
-		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, float> mDicStop;
-		///<summary> pair of BPM command number and data  </summary>
-		std::unordered_map<int, float> mDicBpm;
-		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, float> mDicTimeSignature;
-
+		///<summary> a list of the cumulative number of bits per measure  </summary>
+		std::vector<Utility::Fraction> mListCumulativeBeat;
+		///<summary> a list of the change timing point  </summary>
 		std::vector<TimeSegment> mListTimeSeg;
 	};
 }

@@ -7,7 +7,7 @@
 #include <ctime>
 #include <fstream>
 
-#define PRINT_LOG 1
+#define PRINT_LOG 0
 
 #if PRINT_LOG
 #define __FILENAME__ (strrchr(__FILE__,'\\')+1)	// change full path to file name
