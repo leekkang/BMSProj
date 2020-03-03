@@ -69,9 +69,8 @@ bool BMSDecryptor::Build(BMSData& bmsData) {
 	s = clock();
 	for (int i = 0; i <= mEndMeasure; ++i) { 
 		std::sort(mDicObj[i].begin(), mDicObj[i].end(), compare);
-		std::cout << "raw object sort time(ms) : " << clock() - s << std::endl;
+		std::cout << "raw object of same measure sort time(ms) : " << clock() - s << std::endl;
 	}
-	//std::sort(mListObj.begin(), mListObj.end(), compare);
 	std::cout << "raw object sort time(ms) : " << clock() - s << std::endl;
 
 	return true;
@@ -113,8 +112,6 @@ void BMSDecryptor::ParseHeader(std::string&& line, BMSData& bmsData) noexcept {
 		std::string name = line.substr(7);
 		std::string ext = name.substr(name.size() - 3, 3);
 		if (line[1] == 'W') {
-			//mDicWav[key] = std::pair<std::string, std::string>(val, ext);
-			//mDicWav.emplace(key, std::make_pair(val, ext));
 			bmsData.mDicWav[key] = std::make_pair(std::move(name), std::move(ext));
 		} else {
 			bmsData.mDicBmp[key] = std::make_pair(std::move(name), std::move(ext));
@@ -163,15 +160,10 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 		Utility::Fraction frac;
 		if (index == std::string::npos) {
 			mDicTimeSignature.emplace(measure, Utility::Fraction(std::stoi(measureLen), 1));
-			//frac = Utility::Fraction(std::stoi(measureLen), 1);
-			//mDicTimeSignature[measure] = Utility::Fraction(std::stoi(measureLen), 1);
 		} else {
 			mDicTimeSignature.emplace(measure, Utility::Fraction(std::stoi(measureLen.erase(index, 1)), 
 																 Utility::Pow(10, measureLen.size() - index - 1)));
-			//frac = Utility::Fraction(std::stoi(measureLen.erase(index, 1)), Utility::Pow(10, measureLen.size() - index - 1));
-			//mDicTimeSignature[measure] = Utility::Fraction(std::stoi(measureLen.erase(index, 1)), Utility::Pow(10, measureLen.size() - index - 1));
 		}
-		//mDicTimeSignature[measure] = frac;
 		TRACE("Add TimeSignature : " + std::to_string(measure) + ", length : " + std::to_string(mDicTimeSignature[measure].GetValue()))
 			return;
 	}
@@ -187,7 +179,6 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 		}
 
 		if (channel == Channel::BGM) {
-			//mListObj.emplace_back(val, measure, channel, i, item);
 			objs.emplace_back(val, measure, channel, i, item);
 		} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
 			// add object to time segment list
@@ -195,20 +186,6 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 		} else {
 			// overwrite the value (erase and repush)
 			bool isChanged = false;
-			//for (int j = mListObj.size() - 1; j >= 0; --j) {
-			//	Object& obj = mListObj[j];
-			//	if (obj.mMeasure != measure)
-			//		break;
-
-			//	// overwrite value. very, very rarely happen
-			//	if (obj.mChannel == channel && Utility::Fraction(i, item) == obj.mFraction) {
-			//		TRACE("object change, measure : " + std::to_string(measure) + ", fraction : " +
-			//			    std::to_string(i) + " / " + std::to_string(item) + ", val : " + std::to_string(val));
-			//		obj.mValue = val;
-			//		isChanged = true;
-			//		break;
-			//	}
-			//}
 			for (int j = objs.size() - 1; j >= 0; --j) {
 				Object& obj = objs[j];
 				// overwrite value. very, very rarely happen
@@ -221,7 +198,6 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 				}
 			}
 			if (!isChanged) {
-				//mListObj.emplace_back(val, measure, channel, i, item);
 				objs.emplace_back(val, measure, channel, i, item);
 			}
 		}
