@@ -15,7 +15,7 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSData(std::string);
+		BMSData(std::string path);
 		~BMSData() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSData)
 		//BMSData(const BMSData&) = delete;
@@ -49,7 +49,6 @@ namespace bms {
 		int mRank;					// judgement line difficulty. easy = 3, normal = 2, hard = 1, very hard = 0
 		int mDifficulty;			// easy,beginner,light = 0, normal,standard = 1, hard,hyper = 2, ex,another = 3, insane = 4
 		int mTotal;					// guage value
-		int mEndNoteVal;			/// <summary> if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, this value direct wav file key in <see cref="mDicWav"/>. </summary>
 		LongnoteType mLongNoteType;	// longnote type.
 
 		double mBpm;				// beats per minute
@@ -65,17 +64,20 @@ namespace bms {
 
 		std::string mPath;
 
-		///<summary> a list of data objects </summary>
-		std::vector<Object> mListObj;
-
 		///<summary> key : wav file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicWav;
 		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
 		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
 
 		///<summary> a list of the cumulative number of bits per measure  </summary>
-		std::vector<Utility::Fraction> mListCumulativeBeat;
+		std::vector<BeatFraction> mListCumulativeBeat;
 		///<summary> a list of the change timing point  </summary>
 		std::vector<TimeSegment> mListTimeSeg;
+		///<summary> a list of the note include BGA data  </summary>
+		std::vector<Note> mListBga;
+		///<summary> a list of the note include BGM data  </summary>
+		std::vector<Note> mListBgm;
+		///<summary> a list of the note that shown on the track </summary>
+		std::vector<PlayerNote> mListPlayerNote;
 	};
 }

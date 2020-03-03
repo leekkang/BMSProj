@@ -7,15 +7,22 @@
 #include <ctime>
 #include <fstream>
 
-#define PRINT_LOG 0
+#define PRINT_TRACE 0
+#define PRINT_LOG 1
 
-#if PRINT_LOG
+#if PRINT_TRACE
 #define __FILENAME__ (strrchr(__FILE__,'\\')+1)	// change full path to file name
 #define TRACE(msg) { std::cout << "[" << __FILENAME__ << ":" << __FUNCTION__ << "():" << __LINE__ << "] : " << msg << std::endl; }
 //#define TRACE(msg) { printf("[%s:%s():%d] : %s\n", __FILENAME__, __FUNCTION__, __LINE__, msg); }
 //#define TRACE(msg, ...) { printf("[%s:%s():%d] : "msg"\n", __FILENAME__, __FUNCTION__, __LINE__, ##__VA_ARGS__); }
 #else
 #define TRACE(s, ...) ;
+#endif
+
+#if PRINT_LOG
+#define LOG(msg) { std::cout << "[" << __FUNCTION__ << "():" << __LINE__ << "] : " << msg << std::endl; }
+#else
+#define LOG(msg) ;
 #endif
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) TypeName(const TypeName&) = delete; \
@@ -123,15 +130,28 @@ namespace Utility {
 		}
 
 		constexpr Fraction() : mNumerator(0), mDenominator(1) {}
-		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
+		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {
+			//std::cout << "copy constructor" << std::endl;
+		}
 		constexpr Fraction(const Fraction& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "copy constructor" << std::endl;
 		}
 		// No different from copy...
 		// caution : if this object is constant and rhs is not defined as as constant, the copy constructor is executed.
-		constexpr Fraction(const Fraction&& rhs) : mNumerator(std::move(rhs.mNumerator)), mDenominator(std::move(rhs.mDenominator)) {
+		constexpr Fraction(const Fraction&& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "move constructor" << std::endl;
 		}
+
+		constexpr void Clear() {
+			mNumerator = 0;
+			mDenominator = 1;
+		}
+		constexpr double GetValue() const {
+			return mNumerator == 0 ? 0 : (double)mNumerator / mDenominator;
+		}
+
+		// ----- operator overloading -----
+
 		// assignment is not allowed when this object is constant.. below overloading line only works in non-constant object
 		constexpr Fraction& operator=(const Fraction& rhs) {
 			if (this != &rhs) {
@@ -149,10 +169,28 @@ namespace Utility {
 		}
 		// The const before the function body indicates whether the member variable can be changed.
 		constexpr bool operator==(const Fraction& rhs) const {
-			return mNumerator == rhs.mNumerator && mDenominator == rhs.mDenominator;
+			return mNumerator * rhs.mDenominator == mDenominator * rhs.mNumerator;
 		}
 		constexpr bool operator!=(const Fraction& rhs) const {
 			return !(*this == rhs);
+		}
+		constexpr bool operator<(const int val) {
+			return GetValue() < val;
+		}
+		constexpr bool operator>(const int val) {
+			return GetValue() > val;
+		}
+		constexpr bool operator<=(const int val) {
+			return GetValue() <= val;
+		}
+		constexpr bool operator>=(const int val) {
+			return GetValue() >= val;
+		}
+		constexpr bool operator<(const Fraction& rhs) {
+			return (*this - rhs) < 0;
+		}
+		constexpr bool operator>(const Fraction& rhs) {
+			return (*this - rhs) > 0;
 		}
 		constexpr Fraction& operator+=(const Fraction& rhs) {
 			if (rhs.mNumerator != 0) {
@@ -216,13 +254,6 @@ namespace Utility {
 		}
 		constexpr Fraction operator*(const int val) {
 			return Fraction(*this) *= val;
-		}
-		constexpr void Clear() {
-			mNumerator = 0;
-			mDenominator = 1;
-		}
-		constexpr double GetValue() {
-			return (double)mNumerator / mDenominator;
 		}
 	};
 

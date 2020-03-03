@@ -15,19 +15,18 @@ bool BMSAdapter::Make(std::string path) {
 		TRACE("read bms file failed : " + path)
 		return false;
 	}
-	std::cout << "read text file time(ms) : " << clock() - s << std::endl;
+	LOG("read text file time(ms) : " << clock() - s)
 
-	BMSDecryptor decryptor(lines);
-	BMSData data(path);
+	BMSDecryptor decryptor(path, lines);
 
 	s = clock();
-	if (!decryptor.Build(data)) {
+	if (!decryptor.Build()) {
 		TRACE("parse bms failed : " + path)
 		return false;
 	}
-	std::cout << "bms data build time(ms) : " << clock() - s << std::endl;
+	LOG("bms data build time(ms) : " << clock() - s)
 
-	mListData.emplace_back(std::move(data));
+	mListData.emplace_back(decryptor.GetBmsData());
 
 	return true;
 }
