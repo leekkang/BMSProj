@@ -10,22 +10,22 @@ using namespace bms;
 bool BMSAdapter::Make(std::string path) {
 	std::vector<std::string> lines;
 
+	clock_t s = clock();
 	if (!Utility::ReadText(path, lines)) {
 		TRACE("read bms file failed : " + path)
 		return false;
 	}
+	std::cout << "read text file time(ms) : " << clock() - s << std::endl;
 
 	BMSDecryptor decryptor(lines);
 	BMSData data(path);
 
+	s = clock();
 	if (!decryptor.Build(data)) {
 		TRACE("parse bms failed : " + path)
 		return false;
 	}
-
-	// sort objects and calculate total beat and measure
-	//mData.CalculateBeat();
-	data.SetFilePath(path);
+	std::cout << "bms data build time(ms) : " << clock() - s << std::endl;
 
 	mListData.emplace_back(std::move(data));
 
