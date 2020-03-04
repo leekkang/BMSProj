@@ -1,11 +1,12 @@
 #pragma once
 
-#include "BMSData.h"
 #include "BMSDecryptor.h"
+#include "BMSPlayThread.h"
 
 namespace bms {
 	/// <summary>
-	/// 
+	/// A class that manages BMSData and 
+	/// Only a maximum of one thread can be created.
 	/// </summary>
 	class BMSAdapter {
 	public:
@@ -25,12 +26,39 @@ namespace bms {
 		/// make <see cref="BMS::BMSData"/> object by reading the bms file in <paramref name="path"/>
 		/// </summary>
 		/// <returns> return true if a <see cref="BMS::BMSData"/> object is correctly build </returns>
-		bool Make(std::string path);
+		bool Make(const std::string& path);
 
-		void Play();
+		bool MakeFolder(const std::string& folderPath);
+
+		void Play(int index) {
+			if (static_cast<int>(mListData.size()) <= index) {
+				TRACE("There is no BMSData at the matching index");
+				return;
+			}
+
+			clock_t s = clock();
+			mThread.Play(mFolderPath, mListData[index]);
+			LOG("mThread.Play time(ms) : " << clock() - s)
+		}
+
+		inline bool IsPlayingMusic() {
+			return mThread.IsPlaying();
+		}
+
+		inline void TerminateMusic() {
+			if (mThread.IsPlaying()) {
+				mThread.ForceEnd();
+			}
+		}
 
 		// ----- get, set function -----
 	private:
+		///<summary> Folder path where all bms related files are stored </summary>
+		std::string mFolderPath;
+
+		///<summary> The class that manages the preview before playing the music. </summary>
+		PlayThread mThread;
+
 		///<summary> List that stores the completed bms data instance </summary>
 		std::vector<BMSData> mListData;
 	};

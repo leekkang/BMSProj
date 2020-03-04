@@ -46,6 +46,11 @@ namespace Utility {
 
 		return elems;
 	}
+	
+	inline std::string GetDirectory(const std::string& path) {
+		size_t found = path.find_last_of("/\\");
+		return path.substr(0, found);
+	}
 
 	inline std::string trim(std::string& s, const std::string& drop = TRIM_SPACE) {
 		std::string r = s.erase(s.find_last_not_of(drop) + 1);

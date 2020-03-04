@@ -60,25 +60,22 @@ bool BMSDecryptor::Build() {
 	// 5. Read a list of objects and create a list that stores information such as time and beats of the note.
 	s = clock();
 	MakeNoteList();
+	//MakeNoteList2();
 	LOG("note list make time(ms) : " << clock() - s)
 
+	mBmsData.mTotalTime = GetTotalPlayTime();
+
 	//LOG("total player note num : " << mBmsData.mListPlayerNote.size())
-	LOG("total player normal note num : " << [&](int n) ->int {
-		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
-		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::NORMAL) ++n;
-		return n; }(0))
-	LOG("total player long note num : " << [&](int n) ->int {
-		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
-		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::LONG) ++n;
-		return n; }(0))
-	LOG("total player invisible note num : " << [&](int n) ->int {
+	LOG("total player normal note num : " << mBmsData.mNoteCount)
+	LOG("total player long note num : " << mBmsData.mLongCount)
+	/*LOG("total player invisible note num : " << [&](int n) ->int {
 		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
 		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::INVISIBLE) ++n;
 		return n; }(0))
 	LOG("total player landmine note num : " << [&](int n) ->int {
 		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
 		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::LANDMINE) ++n;
-		return n; }(0))
+		return n; }(0))*/
 	return true;
 }
 
@@ -115,14 +112,9 @@ void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
 		mBmsData.mDifficulty = std::stoi(line.substr(12));
 	} else if ((line.rfind("#WAV", 0) == 0 || line.rfind("#BMP", 0) == 0) && line.size() > 7) {
 		int key = std::stoi(line.substr(4, 2), nullptr, 36);
-		std::string name = line.substr(7);
-		std::string ext = name.substr(name.size() - 3, 3);
-		if (line[1] == 'W') {
-			mBmsData.mDicWav[key] = std::make_pair(std::move(name), std::move(ext));
-		} else {
-			mBmsData.mDicBmp[key] = std::make_pair(std::move(name), std::move(ext));
-		}
-		TRACE("Store dictionary element : " + std::to_string(key) + ", " + name);
+		line[1] == 'W' ? mBmsData.mDicWav[key] = line.substr(7) : 
+						 mBmsData.mDicBmp[key] = line.substr(7);
+		TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
 	} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
 		int key = std::stoi(line.substr(5, 2), nullptr, 36);
 		mDicStop[key] = std::stof(line.substr(8));
@@ -220,7 +212,7 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 /// make time segment list contain <see cref="bms::TimeSegment"/> object
 /// </summary>
 void BMSDecryptor::MakeTimeSegment() {
-	double curTime = 0;
+	long long curTime = 0;
 	double curBpm = mBmsData.mBpm;
 	BeatFraction prevBeat;
 
@@ -244,7 +236,7 @@ void BMSDecryptor::MakeTimeSegment() {
 			mBmsData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
 			// value / 48 = beats to stop, time = beat * (60/bpm), 
 			// --> stop time = (value * 5) / (bpm * 4)
-			curTime += (obj.mValue * 5) / (curBpm * 4);
+			curTime += static_cast<long long>(std::round((obj.mValue * 5000000ll) / (curBpm * 4)));
 			mBmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
 		} else if (obj.mChannel == Channel::CHANGE_BPM ||
 				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
@@ -255,7 +247,7 @@ void BMSDecryptor::MakeTimeSegment() {
 		}
 
 		prevBeat = curBeatSum;
-		TRACE("TimeSegment beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", bpm : " << curBpm)
+		//TRACE("TimeSegment beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", bpm : " << curBpm)
 	}
 }
 
@@ -271,6 +263,12 @@ void BMSDecryptor::MakeNoteList() {
 	// save each column's last note index. This value is used to determine if this object is a long note.
 	int lastIndex[9] = {0};
 
+	auto addLong = [&](int column, const BeatFraction& bf) {
+		mBmsData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
+		mBmsData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
+		lastIndex[column] = 0;
+		mBmsData.mNoteCount--; mBmsData.mLongCount++;
+	};
 	for (int i = 0; i <= mEndMeasure; ++i) {
 		// check if this measure has information
 		if (mDicObj.count(i) == 0) {
@@ -289,9 +287,6 @@ void BMSDecryptor::MakeNoteList() {
 			if (obj.mChannel < Channel::KEY_1P_1) {
 				std::vector<Note>& container = obj.mChannel == Channel::BGM ? mBmsData.mListBgm : mBmsData.mListBga;
 				container.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf);
-				//obj.mChannel == Channel::BGM ?
-				//	mBmsData.mListBgm.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf) :
-				//	mBmsData.mListBga.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf);
 				continue;
 			}
 
@@ -309,13 +304,11 @@ void BMSDecryptor::MakeNoteList() {
 				if (obj.mChannel < Channel::KEY_INVISIBLE_START) {
 					// This object is end note of long note -> Do not add to the list.
 					if (obj.mValue == mEndNoteVal) {
-						mBmsData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
-						mBmsData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
-						lastIndex[column] = 0;
 						// convert note object to bgm object if object value is one of the indexes of WAV (always play sound)
 						if (isExistEndWav) {
 							mBmsData.mListBgm.emplace_back(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf);
 						}
+						addLong(column, bf);
 						continue;
 					}
 
@@ -326,9 +319,7 @@ void BMSDecryptor::MakeNoteList() {
 				if (bLongNote) {
 					// This object is end note of long note -> Do not add to the list.
 					if (lastIndex[column] != 0) {
-						mBmsData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
-						mBmsData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
-						lastIndex[column] = 0;
+						addLong(column, bf);
 						continue;
 					}
 
@@ -345,6 +336,103 @@ void BMSDecryptor::MakeNoteList() {
 			} else if (intCh / 36 >= 3) {
 				type = NoteType::INVISIBLE;
 				intCh -= 72;	// 36 * 2
+			} else {
+				mBmsData.mNoteCount += 1;
+			}
+
+			// make note based on the long note information summarized in the above
+			PlayerNote pn(obj.mValue, static_cast<Channel>(intCh), GetTimeUsingBeat(bf), bf, type);
+			mBmsData.mListPlayerNote.emplace_back(std::move(pn));
+		}
+		//LOG("note list per measure make time(ms) : " << clock() - s);
+	}
+}
+void BMSDecryptor::MakeNoteList2() {
+	clock_t s = clock();
+	// true if long note type is RDM type 2
+	bool isRDM2 = mBmsData.mLongNoteType == LongnoteType::RDM_TYPE_2;
+	// only work of RDM type 2, true if LNOBJ value is one of the indexes of WAV
+	bool isExistEndWav = mEndNoteVal != 0 && mBmsData.mDicWav.count(mEndNoteVal) != 0;
+	// save each column's last note index. This value is used to determine if this object is a long note.
+	int lastIndex[9] = {0};
+
+	auto addLong = [&](int column, const BeatFraction& bf) {
+		mBmsData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
+		mBmsData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
+		lastIndex[column] = 0;
+		mBmsData.mNoteCount -= 1; mBmsData.mLongCount += 1;
+	};
+	int tSegCount = 1;
+	BeatFraction tSegBeat;
+	for (int i = 0; i <= mEndMeasure; ++i) {
+		// check if this measure has information
+		if (mDicObj.count(i) == 0) {
+			continue;
+		}
+
+		std::vector<Object>& objs = mDicObj[i];
+		// 1) sort all object list by ascending of beats
+		std::sort(objs.begin(), objs.end(), [](Object lhs, Object rhs) ->bool { return lhs.mFraction < rhs.mFraction; });
+
+		// 2) Create two lists: a note list that plays sounds and an object list that plays BGA.
+		// TODO : refactor to avoid using GetTimeUsingBeat() functions
+		for (const Object& obj : objs) {
+			BeatFraction bf = GetBeats(i, obj.mFraction);
+			// BG Note list
+			if (obj.mChannel < Channel::KEY_1P_1) {
+				std::vector<Note>& container = obj.mChannel == Channel::BGM ? mBmsData.mListBgm : mBmsData.mListBga;
+				container.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf);
+				continue;
+			}
+
+			// player Note list
+			int intCh = static_cast<int>(obj.mChannel);
+			int column = intCh % 36 - 1;
+			bool bLongNote = obj.mChannel >= Channel::KEY_LONG_START && obj.mChannel < Channel::LANDMINE_START;
+			// note : RDM type2 shares the long note channel with the normal notes.
+			if (isRDM2) {
+				// It doesn't make sense that RDM type 2 has a long note channel. invalid value -> remove
+				if (bLongNote) {
+					continue;
+				}
+				// check only visible note. invisible note doesn't have long note.
+				if (obj.mChannel < Channel::KEY_INVISIBLE_START) {
+					// This object is end note of long note -> Do not add to the list.
+					if (obj.mValue == mEndNoteVal) {
+						// convert note object to bgm object if object value is one of the indexes of WAV (always play sound)
+						if (isExistEndWav) {
+							mBmsData.mListBgm.emplace_back(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf);
+						}
+						addLong(column, bf);
+						continue;
+					}
+
+					lastIndex[column] = mBmsData.mListPlayerNote.size();
+				}
+			} else {
+				// convert long note channel to normal note channel
+				if (bLongNote) {
+					// This object is end note of long note -> Do not add to the list.
+					if (lastIndex[column] != 0) {
+						addLong(column, bf);
+						continue;
+					}
+
+					lastIndex[column] = mBmsData.mListPlayerNote.size();
+					intCh -= 144;	// 36 * 4
+				}
+			}
+
+			// convert variable note channel to normal note channel
+			NoteType type = NoteType::NORMAL;
+			if (intCh / 36 >= 13) {
+				type = NoteType::LANDMINE;
+				intCh -= 432;	// 36 * 12
+			} else if (intCh / 36 >= 3) {
+				type = NoteType::INVISIBLE;
+				intCh -= 72;	// 36 * 2
+			} else {
+				mBmsData.mNoteCount += 1;
 			}
 
 			// make note based on the long note information summarized in the above

@@ -11,7 +11,7 @@ namespace bms {
 	/// a data structure include all information of <see cref="mPath"/> file
 	/// this class has <see cref="BMS::SongInfo"/> object and other data lists as member
 	/// </summary>
-	class BMSData {
+	struct BMSData {
 	public:
 		// ----- constructor, operator overloading -----
 
@@ -26,24 +26,7 @@ namespace bms {
 		// ----- user access function -----
 
 
-		// ----- get, set function -----
 
-		int GetPlayer() { return mPlayer; }
-		double GetBpm() { return mBpm; }
-		int GetLevel() { return mLevel; }
-		int GetRank() { return mRank; }
-		int GetTotal() { return mTotal; }
-		int GetDifficulty() { return mDifficulty; }
-		LongnoteType GetLongNoteType() { return mLongNoteType; }
-		const std::string& GetGenre() { return mGenre; }
-		const std::string& GetTitle() { return mTitle; }
-		const std::string& GetArtist() { return mArtist; }
-		const std::string& GetStageFile() { return mStageFile; }
-		const std::string& GetBanner() { return mBannerFile; }
-
-		const std::string& GetFilePath() { return mPath; }
-
-	//private:
 		int mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
 		int mLevel;					// music level ( 1 ~ 99 )
 		int mRank;					// judgement line difficulty. easy = 3, normal = 2, hard = 1, very hard = 0
@@ -51,6 +34,10 @@ namespace bms {
 		int mTotal;					// guage value
 		LongnoteType mLongNoteType;	// longnote type.
 
+		int mNoteCount;				// the total number of normal note
+		int mLongCount;				// the total number of long note
+
+		long long mTotalTime;		// the total play time
 		double mBpm;				// beats per minute
 		double mMinBpm;				// max bpm at variable bpm
 		double mMaxBpm;				// min bpm at variable bpm
@@ -64,10 +51,10 @@ namespace bms {
 
 		std::string mPath;
 
-		///<summary> key : wav file mapping value, value : pair of wav file name and extension </summary>
-		std::unordered_map<int, std::pair<std::string, std::string>> mDicWav;
-		///<summary> key : bmp file mapping value, value : pair of wav file name and extension </summary>
-		std::unordered_map<int, std::pair<std::string, std::string>> mDicBmp;
+		///<summary> key : wav file mapping value, value : wav file name </summary>
+		std::unordered_map<int, std::string> mDicWav;
+		///<summary> key : bmp file mapping value, value : bmp or video file name </summary>
+		std::unordered_map<int, std::string> mDicBmp;
 
 		///<summary> a list of the cumulative number of bits per measure  </summary>
 		std::vector<BeatFraction> mListCumulativeBeat;

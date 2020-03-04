@@ -14,19 +14,19 @@ namespace bms {
 		// std::move should be used, but is omitted because it performs the same operation as the copy constructor.
 		BeatFraction(const Fraction&& rhs) : Fraction(rhs) {}
 
-		// time = beat * (60 / bpm), time unit = second per beat
-		inline double GetTime(double bpm) {
-			return (mNumerator * 60) / (mDenominator * bpm);
+		// time = beat * (60 / bpm), time unit = microsecond per beat
+		inline long long GetTime(double bpm) const {
+			return static_cast<long long>(std::round((mNumerator * 60000000ll) / (mDenominator * bpm)));
 		}
 	};
 	/// <summary>
 	/// a data structure that store change timing point include sec, bpm, beats at a certain point
 	/// </summary>
 	struct TimeSegment {
-		TimeSegment(double time, int bpm, int beatNum, int beatDenum) :
+		TimeSegment(long long time, int bpm, int beatNum, int beatDenum) :
 					mCurTime(time), mCurBpm(bpm), mCurBeat(beatNum, beatDenum) {}
 
-		double mCurTime;				// the time at which bpm changes (include start point)
+		long long mCurTime;				// the time at which bpm changes (include start point)
 		double mCurBpm;					// the value of beat per minute. if it is stop point, the value is 0
 		BeatFraction mCurBeat;			// the beat at which bpm changes (include start point)
 	};
@@ -52,7 +52,7 @@ namespace bms {
 	/// </summary>
 	struct Note {
 		Note() {}
-		Note(int key, Channel ch, double time, const BeatFraction& beat) : mKey(key), mChannel(ch), mTime(time), mBeat(beat) {}
+		Note(int key, Channel ch, long long time, const BeatFraction& beat) : mKey(key), mChannel(ch), mTime(time), mBeat(beat) {}
 		Note(const Note&) = default;
 		Note& operator=(const Note&) = default;
 		Note(Note&&) noexcept = default;
@@ -62,7 +62,7 @@ namespace bms {
 		//std::string mFilename;
 		Channel mChannel;
 		BeatFraction mBeat;
-		double mTime;
+		long long mTime;
 	};
 
 	/// <summary>
@@ -72,9 +72,10 @@ namespace bms {
 	struct PlayerNote : Note {
 		// ----- constructor, operator overloading -----
 
-		PlayerNote(int key, Channel ch, double time, const BeatFraction& beat, NoteType type) : Note(key, ch, time, beat), mType(type) {}
+		PlayerNote(int key, Channel ch, long long time, const BeatFraction& beat, NoteType type) : Note(key, ch, time, beat), mType(type) {}
 		PlayerNote(const PlayerNote& other) : 
 			Note(other), mType(other.mType), mEndBeat(other.mEndBeat) {}
+		PlayerNote& operator=(const PlayerNote& other) = default;
 		PlayerNote(PlayerNote&& other) : 
 			Note(other), mType(other.mType), mEndBeat(other.mEndBeat) {}
 

@@ -1,18 +1,35 @@
 ﻿#include "pch.h"
 #include "BMSAdapter.h"
-#include <unordered_map>
 
+#include <conio.h>
 
 int main() {
-	std::string a("ad1");
-	std::cout << std::stoi(a.substr(1, 2), nullptr, 36) << std::endl;
+	std::string lpath[] = {"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
+							"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms"};
 
+	int pathIndex = 0;
+	std::string folderPath = Utility::GetDirectory(lpath[pathIndex]);
+	std::string path = lpath[pathIndex];
+	//std::string path = "./test.bms";
 	bms::BMSAdapter adapter;
 	clock_t s = clock();
-	adapter.Make("./engine.bms");
-	//adapter.Make("./test.bme");
-	TRACE("make time(ms) : " + std::to_string(clock() - s))
+	adapter.Make(path);
 	std::cout << "make time(ms) : " << std::to_string(clock() - s) << std::endl;
+
+	// TODO : must be implemented in a thread
+	adapter.Play(0);
+	std::cout << "play music, bms file path : " << path << std::endl;
+
+	// main loop
+	int i = _getch();
+	if (i == 27) { }
+	adapter.TerminateMusic();
+	//while (adapter.IsPlayingMusic()) {
+	//	std::this_thread::sleep_for(1s);
+	//	// if multiple threads work, 
+	//	printf("music playing...");
+	//}
+	std::cout << "end" << std::endl;
 
 	return 0;
 }

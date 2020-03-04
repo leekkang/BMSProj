@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Utility.h"
-#include "BMSEnums.h"
 #include "BMSData.h"
 #include "BMSObjects.h"
 
@@ -10,6 +8,7 @@
 #include <functional>
 
 namespace bms {
+
 	/// <summary>
 	/// A data structure containing temporary variables and functions required for `bms data` calculations.
 	/// This class is declared as a local variable and will not be saved after the whole process.
@@ -50,11 +49,7 @@ namespace bms {
 		/// make note list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::Note"/> objects
 		/// </summary>
 		void MakeNoteList();
-
-		void Play();
-		/// <summary> add parsed wav or bmp file to dictionary </summary>
-		/// <param name="bIsWav"/> flag whether this file is wav or bmp </param>
-		void AddFileToDic(bool bIsWav, int key, const std::string& val);
+		void MakeNoteList2();
 
 		// ----- get, set function -----
 
@@ -85,19 +80,33 @@ namespace bms {
 		/// Function that returns a time at a specific point using beats.
 		/// note : Functions that convert time to beats are not provided because errors can occur during casting.
 		/// </summary>
-		inline double GetTimeUsingBeat(const BeatFraction& beat) {
+		inline long long GetTimeUsingBeat(const BeatFraction& beat) {
 			BeatFraction subtract;
-			for (const TimeSegment& t : mBmsData.mListTimeSeg) {
-				subtract = t.mCurBeat - beat;
+			int length = mBmsData.mListTimeSeg.size();
+			int index = length - 1;
+			for (; index > 0; --index) {
+				const TimeSegment& t = mBmsData.mListTimeSeg[index];
+				subtract = beat - t.mCurBeat;
 				// zero bpm means stop signal. skip it.
-				if (subtract >= 0 && t.mCurBpm != 0) {
-					// previous saved time + current segment time
-					return t.mCurTime + subtract.GetTime(t.mCurBpm);
+				if (subtract >= 0) {
+					break;
 				}
 			}
 
-			const TimeSegment& last = mBmsData.mListTimeSeg[mBmsData.mListTimeSeg.size() - 1];
-			return last.mCurTime - subtract.GetTime(last.mCurBpm);
+			// previous saved time + current segment time. if index equals to length, add reversed sign
+			const TimeSegment& prev = mBmsData.mListTimeSeg[index];
+			return index == 0 ? beat.GetTime(prev.mCurBpm) :
+								prev.mCurTime + subtract.GetTime(prev.mCurBpm);
+		}
+
+		/// <summary>
+		/// Function that returns a total play time
+		/// </summary>
+		inline long long GetTotalPlayTime() {
+			const TimeSegment& seg = mBmsData.mListTimeSeg[mBmsData.mListTimeSeg.size() - 1];
+			BeatFraction subtract = mBmsData.mListCumulativeBeat[mEndMeasure] - seg.mCurBeat;
+
+			return seg.mCurTime + subtract.GetTime(seg.mCurBpm);
 		}
 
 	private:
