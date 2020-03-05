@@ -31,7 +31,7 @@ public:
 		result = system->getVersion(&version);	// isn't it necessary?
 		if (IsJobFailed("system->getVersion failed")) return false;
 		result = system->init(1024, FMOD_INIT_NORMAL, extradriverdata);
-		if (IsJobFailed("system->getVersion failed")) return false;
+		if (IsJobFailed("system->init failed")) return false;
 
 		mInitialized = true;
 		return true;

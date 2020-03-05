@@ -63,7 +63,7 @@ namespace bms {
 		/// stored in <see cref="mDicTimeSignature"/> of <see cref="BMSData"/> object.
 		/// </summary>
 		inline BeatFraction GetBeatInMeasure(int measure) {
-			return mDicTimeSignature.count(measure) == 0 ? BeatFraction(4, 1) : mDicTimeSignature[measure] * 4;
+			return mDicMeasureLength.count(measure) == 0 ? BeatFraction(4, 1) : mDicMeasureLength[measure] * 4;
 		}
 		/// <summary>
 		/// Function that returns cumulative number of beats at a specific timing
@@ -127,16 +127,16 @@ namespace bms {
 		///<summary> a list of raw file data not yet parsed </summary>
 		std::vector<std::string> mListRaw;
 		///<summary> a list of temporary time data objects </summary>
-		std::vector<Object> mListRawTimeSeg;
+		std::vector<Object> mListRawTiming;
 
 		///<summary> a map of data objects (smallest unit) </summary>
 		std::unordered_map<int, std::vector<Object>> mDicObj;
 
 		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, float> mDicStop;
+		std::unordered_map<int, int> mDicStop;
 		///<summary> pair of BPM command number and data  </summary>
 		std::unordered_map<int, float> mDicBpm;
-		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, BeatFraction> mDicTimeSignature;
+		///<summary> pair of measure number and measure length </summary>
+		std::unordered_map<int, BeatFraction> mDicMeasureLength;
 	};
 }
