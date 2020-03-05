@@ -30,7 +30,7 @@ public:
 		if (IsJobFailed("System_Create failed")) return false;
 		result = system->getVersion(&version);	// isn't it necessary?
 		if (IsJobFailed("system->getVersion failed")) return false;
-		result = system->init(64, FMOD_INIT_NORMAL, extradriverdata);
+		result = system->init(1024, FMOD_INIT_NORMAL, extradriverdata);
 		if (IsJobFailed("system->getVersion failed")) return false;
 
 		mInitialized = true;
@@ -56,25 +56,28 @@ public:
 	/// </summary>
 	void CreateSounds(const std::string& folderPath, const std::unordered_map<int, std::string>& dic) {
 		if (!mInitialized) {
-			std::cout << "The system did not initialize" << std::endl;
+			printf("The system did not initialize\n");
 			return;
 		}
 
 		if (mPrevFolderPath == folderPath) {
-			std::cout << "all sounds already created" << std::endl;
+			printf("all sounds already created\n");
 			return;
 		}
 
 		for (std::pair<int, std::string> element : dic) {
 			FMOD::Sound* sound;
 			result = system->createSound((folderPath + element.second).c_str(), FMOD_LOOP_OFF, 0, &sound);
-			if (!IsJobFailed("failed to create sound : " + element.second)) {
-				if (mDicSound.count(element.first) != 0) {
-					mDicSound[element.first]->release();
-				}
-				mDicSound[element.first] = sound;
+			if (IsJobFailed("failed to create sound : " + element.second)) {
+				exit(-1);
 			}
+			if (mDicSound.count(element.first) != 0) {
+				mDicSound[element.first]->release();
+			}
+			mDicSound[element.first] = sound;
 		}
+
+		mPrevFolderPath = folderPath;
 	}
 
 	/// <summary>
@@ -114,7 +117,7 @@ private:
 	bool IsJobFailed(const std::string& output = "") {
 		bool bFailed = result != FMOD_OK;
 		if (bFailed && output.size() > 0) {
-			printf("%s", output.c_str());
+			printf("%s\n", output.c_str());
 		}
 
 		return bFailed;

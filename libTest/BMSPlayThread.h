@@ -8,7 +8,7 @@
 
 using namespace std::chrono_literals;	// for using std::this_thread::sleep_for() function
 namespace bms {
-	constexpr auto FRAMERATE = 120;
+	constexpr auto FRAMERATE = 500;
 
 	/// <summary>
 	/// A class that manages threads for playing music
@@ -52,6 +52,7 @@ namespace bms {
 			mFMOD.CreateSounds(folderPath, data.mDicWav);
 			LOG("FMOD sound create time(ms) : " << clock() - s)
 
+			mDuration = std::chrono::microseconds(data.mTotalTime + 500000ll);
 			// music start
 			mStop = false;
 			// reference : https://stackoverflow.com/questions/35897617/c-loop-with-fixed-delta-time-on-a-background-thread
@@ -70,6 +71,10 @@ namespace bms {
 					std::chrono::microseconds timeDelta =
 						std::chrono::duration_cast<std::chrono::microseconds>(now - start);
 
+					/*if (mDuration < timeDelta) {
+						ForceEnd();
+					}*/
+
 					Update(timeDelta);
 
 					//prev = now;
@@ -82,8 +87,8 @@ namespace bms {
 			});
 
 			// wait for the music to finish playing
-			std::this_thread::sleep_for(std::chrono::microseconds(data.mTotalTime + 500000ll));	// + 0.5sec
-			ForceEnd();
+			//std::this_thread::sleep_for());	// + 0.5sec
+			//ForceEnd();
 		}
 
 		/// <summary>
@@ -102,8 +107,10 @@ namespace bms {
 				mBgmIndex++;
 			}
 			while (mNoteIndex < mMaxNoteIndex && mListNote[mNoteIndex].mTime < deltaVal) {
-				// play note
-				mFMOD.PlaySound(mListNote[mNoteIndex].mKey);
+				// play note (landmine doesn't have own sound == mute)
+				if (mListNote[mNoteIndex].mType != NoteType::LANDMINE) {
+					mFMOD.PlaySound(mListNote[mNoteIndex].mKey);
+				}
 				//std::cout << "note play : " << mNoteIndex << std::endl;
 				mNoteIndex++;
 			}
@@ -129,6 +136,7 @@ namespace bms {
 		std::condition_variable mConditionVar;
 		std::mutex mMutex;
 		std::thread mThread;
+		std::chrono::microseconds mDuration;	// max thread duration
 
 		int mNoteIndex;
 		int mBgmIndex;

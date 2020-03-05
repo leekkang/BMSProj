@@ -5,9 +5,12 @@
 
 int main() {
 	std::string lpath[] = {"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
-							"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms"};
+							"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
+							"./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
+	
+	};
 
-	int pathIndex = 0;
+	int pathIndex = 1;
 	std::string folderPath = Utility::GetDirectory(lpath[pathIndex]);
 	std::string path = lpath[pathIndex];
 	//std::string path = "./test.bms";
@@ -25,7 +28,7 @@ int main() {
 	if (i == 27) { }
 	adapter.TerminateMusic();
 	//while (adapter.IsPlayingMusic()) {
-	//	std::this_thread::sleep_for(1s);
+	//	std::this_thread::sleep_for(0.1s);
 	//	// if multiple threads work, 
 	//	printf("music playing...");
 	//}

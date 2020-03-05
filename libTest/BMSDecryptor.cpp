@@ -114,7 +114,7 @@ void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
 		int key = std::stoi(line.substr(4, 2), nullptr, 36);
 		line[1] == 'W' ? mBmsData.mDicWav[key] = line.substr(7) : 
 						 mBmsData.mDicBmp[key] = line.substr(7);
-		TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
+		//TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
 	} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
 		int key = std::stoi(line.substr(5, 2), nullptr, 36);
 		mDicStop[key] = std::stof(line.substr(8));
@@ -133,7 +133,7 @@ void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
 		TRACE("This line is not in the correct format : " << line)
 			return;
 	}
-	TRACE("This line is correct format : " << line)
+	//TRACE("This line is correct format : " << line)
 }
 
 /// <summary>
@@ -141,7 +141,7 @@ void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
 /// </summary>
 void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 	// example line -> #00116:0010F211
-	if (line.size() < 9 || line[6] != ':') {
+	if (line.size() < 8 || line[6] != ':') {
 		TRACE("This data is not in the correct format : " << line)
 			return;
 	} else if (line.size() == 9 && line[7] == '0' && line[8] == '0') {
@@ -234,6 +234,7 @@ void BMSDecryptor::MakeTimeSegment() {
 			// STOP value is the time value of 1/192 of a whole note in 4/4 meter be the unit 1
 			// 48 == 1 beat
 			mBmsData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			TRACE("TimeSegment beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", bpm : " << 0)
 			// value / 48 = beats to stop, time = beat * (60/bpm), 
 			// --> stop time = (value * 5) / (bpm * 4)
 			curTime += static_cast<long long>(std::round((obj.mValue * 5000000ll) / (curBpm * 4)));
@@ -247,7 +248,7 @@ void BMSDecryptor::MakeTimeSegment() {
 		}
 
 		prevBeat = curBeatSum;
-		//TRACE("TimeSegment beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", bpm : " << curBpm)
+		TRACE("TimeSegment beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", bpm : " << curBpm)
 	}
 }
 
