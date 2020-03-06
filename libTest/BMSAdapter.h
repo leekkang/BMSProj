@@ -30,16 +30,7 @@ namespace bms {
 
 		bool MakeFolder(const std::string& folderPath);
 
-		void Play(int index) {
-			if (static_cast<int>(mListData.size()) <= index) {
-				TRACE("There is no BMSData at the matching index");
-				return;
-			}
-
-			clock_t s = clock();
-			mThread.Play(mFolderPath, mListData[index]);
-			LOG("mThread.Play time(ms) : " << clock() - s)
-		}
+		void Play(int index);
 
 		inline bool IsPlayingMusic() {
 			return mThread.IsPlaying();

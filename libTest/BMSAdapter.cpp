@@ -12,7 +12,7 @@ bool BMSAdapter::Make(const std::string& path) {
 
 	clock_t s = clock();
 	if (!Utility::ReadText(path, lines)) {
-		LOG("read bms file failed : " + path)
+		LOG("read bms file failed : " + path);
 		return false;
 	}
 	LOG("read text file time(ms) : " << clock() - s)
@@ -21,13 +21,27 @@ bool BMSAdapter::Make(const std::string& path) {
 
 	s = clock();
 	if (!decryptor.Build()) {
-		LOG("parse bms failed : " + path)
+		LOG("parse bms failed : " + path);
 		return false;
 	}
-	LOG("bms data build time(ms) : " << clock() - s)
+	LOG("bms data build time(ms) : " << clock() - s);
 
 	mListData.emplace_back(decryptor.GetBmsData());
 	mFolderPath = Utility::GetDirectory(path) + '/';
 
 	return true;
+}
+
+/// <summary>
+/// Preview music contained in the <paramref name="index"/> of <paramref name="mListData"/> vector
+/// </summary>
+void BMSAdapter::Play(int index) {
+	if (static_cast<int>(mListData.size()) <= index) {
+		LOG("There is no BMSData at the matching index");
+		return;
+	}
+
+	clock_t s = clock();
+	mThread.Play(mFolderPath, mListData[index]);
+	LOG("mThread.Play time(ms) : " << clock() - s);
 }
