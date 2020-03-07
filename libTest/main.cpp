@@ -2,6 +2,7 @@
 #include "BMSAdapter.h"
 
 #include <conio.h>
+#include <thread>
 
 int main() {
 	std::vector<std::string> paths = {"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
@@ -21,6 +22,7 @@ int main() {
 	}
 	std::cout << "make time(ms) : " << std::to_string(clock() - s) << std::endl;
 
+	//std::cout << " bms file list : " << adapter.mListData[0].mTitle << std::endl;
 	// TODO : must be implemented in a thread
 	adapter.Play(pathIndex);
 	std::cout << "play music, bms file path : " << paths[pathIndex] << std::endl;
@@ -29,7 +31,7 @@ int main() {
 	while (true) {
 		int i = _getch();
 		if (i == 27) {
-			//adapter.TerminateMusic();
+			adapter.TerminateMusic();
 			break;
 		} else if (i == 224) {
 			int newIndex = pathIndex;
@@ -47,6 +49,7 @@ int main() {
 			}
 		}
 		// if multiple threads work
+		std::cout << "play music..." << std::endl;
 		//std::this_thread::sleep_for(0.1s);
 	}
 	std::cout << "end" << std::endl;

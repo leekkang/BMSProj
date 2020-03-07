@@ -26,8 +26,9 @@ bool BMSAdapter::Make(const std::string& path) {
 	}
 	LOG("bms data build time(ms) : " << clock() - s);
 
+	//mListData.push_back(decryptor.CopyBmsData());
 	mListData.emplace_back(decryptor.GetBmsData());
-	mFolderPath = Utility::GetDirectory(path) + '/';
+	mListFolderPath.emplace_back(Utility::GetDirectory(path) + '/');
 
 	return true;
 }
@@ -42,6 +43,6 @@ void BMSAdapter::Play(int index) {
 	}
 
 	clock_t s = clock();
-	mThread.Play(mFolderPath, mListData[index]);
+	mThread.Play(mListFolderPath[index], mListData[index]);
 	LOG("mThread.Play time(ms) : " << clock() - s);
 }

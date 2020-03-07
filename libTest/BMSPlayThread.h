@@ -55,7 +55,7 @@ namespace bms {
 		/// <summary>
 		/// Ask the wrapper to generate the sounds in <paramref name="folderPath"/> and put it in <see cref="mDicSound"/> dictionary.
 		/// </summary>
-		void CreateSounds(const std::string& folderPath, const std::unordered_map<int, std::string>& dic) {
+		void CreateSounds(const std::string& folderPath) {
 			clock_t s = clock();
 
 			// terminate prevthread if it activated
@@ -69,8 +69,11 @@ namespace bms {
 			mLoadingChecker.fill({});
 			while (mListBgm[bgmCount].mTime < ASYNC_READY_TIME) syncSounds.insert(mListBgm[bgmCount++].mKey);
 			while (mListNote[noteCount].mTime < ASYNC_READY_TIME) syncSounds.insert(mListNote[noteCount++].mKey);
+
 			for (int key : syncSounds) {
-				auto value = (dic.find(key))->second;
+				auto dicVal = mDicWave.find(key);
+				if (dicVal == mDicWave.end()) continue;
+				auto value = dicVal->second;
 				mFMOD.CreateSound(folderPath + value, key);
 				mLoadingChecker[key] = true;
 			}
@@ -153,7 +156,7 @@ namespace bms {
 				LOG("copy vector time(ms) : " << clock() - s)
 
 				s = clock();
-				CreateSounds(folderPath, data.mDicWav);
+				CreateSounds(folderPath);
 				mPrevFolderPath = folderPath;
 			} else {
 				printf("all sounds already created\n");
@@ -247,6 +250,7 @@ namespace bms {
 				std::lock_guard<std::mutex> lock(mMutex);
 				mStop = true;
 			}
+			mFMOD.ReleaseAllSounds();
 			mPlayThread.join();
 		}
 	private:

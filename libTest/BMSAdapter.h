@@ -44,13 +44,13 @@ namespace bms {
 
 		// ----- get, set function -----
 	private:
-		///<summary> Folder path where all bms related files are stored </summary>
-		std::string mFolderPath;
 
 		///<summary> The class that manages the preview before playing the music. </summary>
 		PlayThread mThread;
 
 		///<summary> List that stores the completed bms data instance </summary>
 		std::vector<BMSData> mListData;
+		///<summary> Folder path where all bms related files are stored </summary>
+		std::vector<std::string> mListFolderPath;
 	};
 }

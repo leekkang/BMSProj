@@ -57,6 +57,7 @@ namespace bms {
 		/// return <see cref="BMSData"/> object. It should be called after the build is finished.
 		/// </summary>
 		inline BMSData&& GetBmsData() { return std::move(mBmsData); }
+		//inline BMSData CopyBmsData() { return mBmsData; }
 
 		/// <summary>
 		/// Function that returns the number of beats of a particular measure

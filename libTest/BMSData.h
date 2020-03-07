@@ -29,8 +29,8 @@ namespace bms {
 		}
 		~BMSData() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSData)
-		//BMSData(const BMSData&) = delete;
-		//BMSData& operator=(const BMSData&) = delete;
+		//BMSData(const BMSData&) = default;
+		//BMSData& operator=(const BMSData&) = default;
 		BMSData(BMSData&& others) noexcept { std::cout << "BMSData move constructor" << std::endl; *this = std::move(others); }
 		BMSData& operator=(BMSData&&) noexcept = default;
 
