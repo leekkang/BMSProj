@@ -60,7 +60,6 @@ bool BMSDecryptor::Build() {
 	// 5. Read a list of objects and create a list that stores information such as time and beats of the note.
 	s = clock();
 	MakeNoteList();
-	//MakeNoteList2();
 	LOG("note list make time(ms) : " << clock() - s)
 
 	mBmsData.mTotalTime = GetTotalPlayTime();

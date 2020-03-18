@@ -6,6 +6,7 @@
 #include <iostream>
 #include <ctime>
 #include <fstream>
+#include <codecvt>
 
 #define PRINT_TRACE 0
 #define PRINT_LOG 1
@@ -75,6 +76,27 @@ namespace Utility {
 	/// <summary> Find the least common multiple </summary>
 	constexpr int LCM(int m, int n) {
 		return (m * n) / GCD(m, n);
+	}
+
+	// reference : https://stackoverflow.com/questions/17562736/how-to-convert-from-utf-8-to-ansi-using-standard-c
+	inline std::string StringToUTF8(const std::string& str, const std::locale& loc = std::locale{}) {
+		using wcvt = std::wstring_convert<std::codecvt_utf8<int32_t>, int32_t>;
+		std::u32string wstr(str.size(), U'\0');
+		std::use_facet<std::ctype<char32_t>>(loc).widen(str.data(), str.data() + str.size(), &wstr[0]);
+		return wcvt{}.to_bytes(
+			reinterpret_cast<const int32_t*>(wstr.data()),
+			reinterpret_cast<const int32_t*>(wstr.data() + wstr.size())
+		);
+	}
+	inline std::string StringFromUTF8(const std::string& str, const std::locale& loc = std::locale{}) {
+		using wcvt = std::wstring_convert<std::codecvt_utf8<int32_t>, int32_t>;
+		auto wstr = wcvt{}.from_bytes(str);
+		std::string result(wstr.size(), '0');
+		std::use_facet<std::ctype<char32_t>>(loc).narrow(
+			reinterpret_cast<const char32_t*>(wstr.data()),
+			reinterpret_cast<const char32_t*>(wstr.data() + wstr.size()),
+			'?', &result[0]);
+		return result;
 	}
 
 	/// <summary>

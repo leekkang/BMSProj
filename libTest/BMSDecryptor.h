@@ -49,7 +49,6 @@ namespace bms {
 		/// make note list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::Note"/> objects
 		/// </summary>
 		void MakeNoteList();
-		void MakeNoteList2();
 
 		// ----- get, set function -----
 
