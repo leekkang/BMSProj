@@ -150,8 +150,8 @@ namespace bms {
 			if (mPrevFolderPath != folderPath) {
 				mListBgm = data.mListBgm;
 				mListNote = data.mListPlayerNote;
-				mMaxBgmIndex = mListBgm.size(); 
-				mMaxNoteIndex = mListNote.size();
+				mMaxBgmIndex = static_cast<int>(mListBgm.size());
+				mMaxNoteIndex = static_cast<int>(mListNote.size());
 				mDicWave = data.mDicWav;
 				LOG("copy vector time(ms) : " << clock() - s)
 

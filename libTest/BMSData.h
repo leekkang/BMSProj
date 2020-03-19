@@ -1,10 +1,6 @@
 #pragma once
 
-#include "Utility.h"
-#include "BMSEnums.h"
 #include "BMSObjects.h"
-
-#include <unordered_map>
 
 namespace bms {
 	/// <summary>
@@ -36,7 +32,64 @@ namespace bms {
 
 		// ----- user access function -----
 
+		friend std::ostream& operator<<(std::ostream& os, const BMSData& s) {
+			WriteToBinary(os, s.mPlayer);
+			WriteToBinary(os, s.mLevel);
+			WriteToBinary(os, s.mRank);
+			WriteToBinary(os, s.mDifficulty);
+			WriteToBinary(os, s.mTotal);
+			WriteToBinary(os, s.mNoteCount);
+			WriteToBinary(os, s.mLongCount);
+			WriteToBinary(os, s.mTotalTime);
+			WriteToBinary(os, s.mBpm);
+			WriteToBinary(os, s.mMinBpm);
+			WriteToBinary(os, s.mMaxBpm);
+			WriteToBinary<LongnoteType>(os, s.mLongNoteType);
+			WriteToBinary(os, s.mGenre);
+			WriteToBinary(os, s.mTitle);
+			WriteToBinary(os, s.mArtist);
+			WriteToBinary(os, s.mStageFile);
+			WriteToBinary(os, s.mBannerFile);
+			WriteToBinary(os, s.mPath);
+			WriteToBinary(os, s.mDicWav);
+			WriteToBinary(os, s.mDicBmp);
+			WriteToBinary(os, s.mListCumulativeBeat);
+			WriteToBinary(os, s.mListTimeSeg);
+			WriteToBinary(os, s.mListBga);
+			WriteToBinary(os, s.mListBgm);
+			WriteToBinary(os, s.mListPlayerNote);
 
+			return os;
+		}
+		friend std::istream& operator>>(std::istream& is, BMSData& s) {
+			s.mPlayer = ReadFromBinary<int>(is);
+			s.mLevel = ReadFromBinary<int>(is);
+			s.mRank = ReadFromBinary<int>(is);
+			s.mDifficulty = ReadFromBinary<int>(is);
+			s.mTotal = ReadFromBinary<int>(is);
+			s.mNoteCount = ReadFromBinary<int>(is);
+			s.mLongCount = ReadFromBinary<int>(is);
+			s.mTotalTime = ReadFromBinary<long long>(is);
+			s.mBpm = ReadFromBinary<double>(is);
+			s.mMinBpm = ReadFromBinary<double>(is);
+			s.mMaxBpm = ReadFromBinary<double>(is);
+			s.mLongNoteType = ReadFromBinary<LongnoteType>(is);
+			s.mGenre = ReadFromBinary<std::string>(is);
+			s.mTitle = ReadFromBinary<std::string>(is);
+			s.mArtist = ReadFromBinary<std::string>(is);
+			s.mStageFile = ReadFromBinary<std::string>(is);
+			s.mBannerFile = ReadFromBinary<std::string>(is);
+			s.mPath = ReadFromBinary<std::string>(is);
+			ReadFromBinary<std::unordered_map<int, std::string>>(is, s.mDicWav);
+			ReadFromBinary<std::unordered_map<int, std::string>>(is, s.mDicBmp);
+			ReadFromBinary<std::vector<BeatFraction>>(is, s.mListCumulativeBeat);
+			ReadFromBinary<std::vector<TimeSegment>>(is, s.mListTimeSeg);
+			ReadFromBinary<std::vector<Note>>(is, s.mListBga);
+			ReadFromBinary<std::vector<Note>>(is, s.mListBgm);
+			ReadFromBinary<std::vector<PlayerNote>>(is, s.mListPlayerNote);
+
+			return is;
+		}
 
 		int mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
 		int mLevel;					// music level ( 1 ~ 99 )

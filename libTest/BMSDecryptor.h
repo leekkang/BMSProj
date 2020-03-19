@@ -82,8 +82,8 @@ namespace bms {
 		/// </summary>
 		inline long long GetTimeUsingBeat(const BeatFraction& beat) {
 			BeatFraction subtract;
-			int length = mBmsData.mListTimeSeg.size();
-			int index = length - 1;
+			size_t length = mBmsData.mListTimeSeg.size();
+			size_t index = length - 1;
 			for (; index > 0; --index) {
 				const TimeSegment& t = mBmsData.mListTimeSeg[index];
 				subtract = beat - t.mCurBeat;

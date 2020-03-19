@@ -10,9 +10,22 @@ int main() {
 									  "./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
 	
 	};
+	/*bms::BMSData d("./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme");
+	std::ofstream os("./test.bin", std::ios::binary);
+	os << d;
+	os.close();
+
+	std::ifstream is("./test.bin", std::ios::binary);
+	bms::BMSData d2("temp");
+	while (is.peek() != std::ifstream::traits_type::eof()) {
+		is >> d2;
+	}
+	is.close();
+
+	return 0;*/
 
 	int pathIndex = 0;
-	int max = paths.size() - 1;
+	int max = static_cast<int>(paths.size() - 1);
 	std::string folderPath = Utility::GetDirectory(paths[pathIndex]);
 	//std::string path = "./test.bms";
 	bms::BMSAdapter adapter;

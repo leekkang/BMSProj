@@ -166,7 +166,7 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 			mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen), 1));
 		} else {
 			mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen.erase(index, 1)), 
-																 Utility::Pow(10, static_cast<int>(measureLen.size()) - index - 1)));
+															Utility::Pow(10, static_cast<int>(measureLen.size() - index - 1))));
 		}
 		TRACE("Add TimeSignature : " << measure << ", length : " << mDicMeasureLength[measure].mNumerator << " / " << mDicMeasureLength[measure].mDenominator);
 		return;
@@ -174,7 +174,7 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 
 	// Separate each beat fragment into objects with information.
 	std::vector<Object>& objs = mDicObj[measure];
-	int item = line.substr(7).size() / 2;
+	int item = static_cast<int>(line.substr(7).size()) / 2;
 	for (int i = 0; i < item; ++i) {
 		// convert value to base-36, if channel is CHANGE_BPM, convert value to hex
 		int val = std::stoi(line.substr(7 + i * 2, 2), nullptr, channel == Channel::CHANGE_BPM ? 16 : 36);
@@ -195,7 +195,7 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 		} else {
 			// overwrite the value (erase and repush)
 			bool isChanged = false;
-			for (int j = objs.size() - 1; j >= 0; --j) {
+			for (int j = static_cast<int>(objs.size() - 1); j >= 0; --j) {
 				Object& obj = objs[j];
 				// overwrite value. very, very rarely happen
 				if (obj.mChannel == channel && BeatFraction(i, item) == obj.mFraction) {
@@ -224,7 +224,7 @@ void BMSDecryptor::MakeTimeSegment() {
 	mBmsData.mListTimeSeg.emplace_back(0, curBpm, 0, 1);
 	TRACE("TimeSegment measure : 0, beat : 0, second : 0, bpm : " + std::to_string(curBpm));
 
-	int count = mListRawTiming.size();
+	int count = static_cast<int>(mListRawTiming.size());
 	for (int i = 0; i < count; ++i) {
 		Object& obj = mListRawTiming[i];
 		int curMeasure = obj.mMeasure;
@@ -327,7 +327,7 @@ void BMSDecryptor::MakeNoteList() {
 						continue;
 					}
 
-					lastIndex[column] = mBmsData.mListPlayerNote.size();
+					lastIndex[column] = static_cast<int>(mBmsData.mListPlayerNote.size());
 				}
 			} else {
 				// convert long note channel to normal note channel
@@ -338,7 +338,7 @@ void BMSDecryptor::MakeNoteList() {
 						continue;
 					}
 
-					lastIndex[column] = mBmsData.mListPlayerNote.size();
+					lastIndex[column] = static_cast<int>(mBmsData.mListPlayerNote.size());
 					intCh -= 144;	// 36 * 4
 				} else if (bInvisibleNote) {
 					// remove invisible note with no sound data

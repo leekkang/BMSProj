@@ -2,6 +2,7 @@
 
 #include "Utility.h"
 #include "BMSEnums.h"
+#include "Serializer.h"
 
 namespace bms {
 	/// <summary>
@@ -23,6 +24,7 @@ namespace bms {
 	/// a data structure that store change timing point include sec, bpm, beats at a certain point
 	/// </summary>
 	struct TimeSegment {
+		TimeSegment() : mCurTime(0), mCurBpm(0) {}
 		TimeSegment(long long time, int bpm, int beatNum, int beatDenum) :
 					mCurTime(time), mCurBpm(bpm), mCurBeat(beatNum, beatDenum) {}
 
@@ -51,7 +53,7 @@ namespace bms {
 	/// include file info, time, beat, Channel
 	/// </summary>
 	struct Note {
-		Note() {}
+		Note() : mKey(0), mChannel(Channel::BGM), mTime(0) {}
 		Note(int key, Channel ch, long long time, const BeatFraction& beat) : mKey(key), mChannel(ch), mTime(time), mBeat(beat) {}
 		Note(const Note&) = default;
 		Note& operator=(const Note&) = default;
@@ -72,6 +74,7 @@ namespace bms {
 	struct PlayerNote : Note {
 		// ----- constructor, operator overloading -----
 
+		PlayerNote() : Note(), mType(NoteType::NORMAL) {}
 		PlayerNote(int key, Channel ch, long long time, const BeatFraction& beat, NoteType type) : Note(key, ch, time, beat), mType(type) {}
 		PlayerNote(const PlayerNote& other) : 
 			Note(other), mType(other.mType), mEndBeat(other.mEndBeat) {}
@@ -86,37 +89,62 @@ namespace bms {
 	};
 
 
+	// -- bms struct serializer overriding --
 
-	/// <summary>
-	/// a data structure represents an object include raw information of bms
-	/// smallest unit in this data. music only + note + option
-	/// </summary>
-	//class Object {
-	//public:
-	//	// ----- constructor, operator overloading -----
+	inline void WriteToBinaryImpl(std::ostream& os, const bms::LongnoteType& v) {
+		WriteToBinary<char>(os, static_cast<char>(v));
+	}
+	inline void ReadFromBinaryImpl(std::istream& is, bms::LongnoteType& v) {
+		v = static_cast<bms::LongnoteType>(ReadFromBinary<char>(is));
+	}
 
-	//	Object(int measure, Channel channel, int fracIndex, int fracDenom, int val) :
-	//		mMeasure(measure), mChannel(channel), mFracIndex(fracIndex), mFracDenom(fracDenom), mValue(val) {}
-	//	~Object() = default;
+	inline void WriteToBinaryImpl(std::ostream& os, const bms::BeatFraction& v) {
+		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::BeatFraction))) {
+			throw std::ios_base::failure(std::string{"writing type 'bms::BeatFraction' failed"});
+		}
+	}
+	inline void ReadFromBinaryImpl(std::istream& is, bms::BeatFraction& v) {
+		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::BeatFraction))) {
+			throw std::ios_base::failure(std::string{"reading type 'bms::BeatFraction' failed"});
+		}
+	}
 
-	//	Object(const Object&) = delete;
-	//	Object& operator=(const Object&) = delete;
-	//	Object(Object&&) noexcept = default;
-	//	Object& operator=(Object&&) noexcept = default;
+	inline void WriteToBinaryImpl(std::ostream& os, const bms::TimeSegment& v) {
+		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::TimeSegment))) {
+			throw std::ios_base::failure(std::string{"writing type 'bms::TimeSegment' failed"});
+		}
+		/*WriteToBinary<long long>(os, v.mCurTime);
+		WriteToBinary<double>(os, v.mCurBpm);
+		WriteToBinary<bms::BeatFraction>(os, v.mCurBeat);*/
+	}
+	inline void ReadFromBinaryImpl(std::istream& is, bms::TimeSegment& v) {
+		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::TimeSegment))) {
+			throw std::ios_base::failure(std::string{"reading type 'bms::TimeSegment' failed"});
+		}
+		/*v.mCurTime = ReadFromBinary<long long>(is);
+		v.mCurBpm = ReadFromBinary<double>(is);
+		v.mCurBeat = ReadFromBinary<bms::BeatFraction>(is);*/
+	}
 
-	//	// ----- get, set function -----
+	inline void WriteToBinaryImpl(std::ostream& os, const bms::Note& v) {
+		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::Note))) {
+			throw std::ios_base::failure(std::string{"writing type 'bms::Note' failed"});
+		}
+	}
+	inline void ReadFromBinaryImpl(std::istream& is, bms::Note& v) {
+		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::Note))) {
+			throw std::ios_base::failure(std::string{"reading type 'bms::Note' failed"});
+		}
+	}
 
-	//	int GetMeasure() { return mMeasure; }
-	//	Channel GetChannel() { return mChannel; }
-	//	int GetFracIndex() { return mFracIndex; }
-	//	int GetFracDenom() { return mFracDenom; }
-	//	int GetValue() { return mValue; }
-
-	////private:
-	//	int mMeasure;			// the measure number, starting at 0 (corresponds to `#000`)
-	//	Channel mChannel;		// value of Channel enum
-	//	int mFracIndex;		// numerator of the fractional position inside the measure
-	//	int mFracDenom;		// denominator of the fractional position inside the measure
-	//	int mValue;				// the raw value of the BMS object
-	//};
+	inline void WriteToBinaryImpl(std::ostream& os, const bms::PlayerNote& v) {
+		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::PlayerNote))) {
+			throw std::ios_base::failure(std::string{"writing type 'bms::PlayerNote' failed"});
+		}
+	}
+	inline void ReadFromBinaryImpl(std::istream& is, bms::PlayerNote& v) {
+		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::PlayerNote))) {
+			throw std::ios_base::failure(std::string{"reading type 'bms::PlayerNote' failed"});
+		}
+	}
 }
