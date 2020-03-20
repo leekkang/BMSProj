@@ -70,6 +70,33 @@ int main() {
 	return 0;
 }
 
+void UnicodeTest() {
+	std::string ko("루브잇");
+	std::string tko(u8"루브잇");
+	std::wstring uko(L"루브잇");
+	std::cout << "ansi : " << ko << std::endl;
+	std::cout << "ansi to unicode to ansi : " << Utility::WideToAnsi(Utility::AnsiToWide(ko)) << std::endl;
+	std::cout << "ansi to utf : " << Utility::ToUTF8(ko) << std::endl;
+	std::cout << "ansi to utf to ansi : " << Utility::ToAnsi(Utility::ToUTF8(ko)) << std::endl;
+	std::cout << "utf : " << tko << std::endl;
+	std::cout << "utf to ansi : " << Utility::ToAnsi(tko) << std::endl;
+	std::cout << "utf to ansi to utf : " << Utility::ToUTF8(Utility::ToAnsi(tko)) << std::endl;
+	std::cout << "unicode to ansi : " << Utility::WideToAnsi(uko) << std::endl;
+	std::cout << "unicode to utf : " << Utility::WideToUTF8(uko) << std::endl;
+	std::string jp("XIV - 虚空グラデーション feat. ｂ");
+	std::string tjp(u8"XIV - 虚空グラデーション feat. ｂ");
+	std::wstring ujp(L"XIV - 虚空グラデーション feat. ｂ");
+	std::cout << "ansi : " << jp << std::endl;
+	std::cout << "ansi to unicode to ansi : " << Utility::WideToAnsi(Utility::AnsiToWide(jp)) << std::endl;
+	std::cout << "ansi to utf : " << Utility::ToUTF8(jp) << std::endl;
+	std::cout << "ansi to utf to ansi : " << Utility::ToAnsi(Utility::ToUTF8(jp)) << std::endl;
+	std::cout << "utf : " << tjp << std::endl;
+	std::cout << "utf to ansi : " << Utility::ToAnsi(tjp) << std::endl;
+	std::cout << "utf to ansi to utf : " << Utility::ToUTF8(Utility::ToAnsi(tjp)) << std::endl;
+	std::cout << "unicode to ansi : " << Utility::WideToAnsi(ujp) << std::endl;
+	std::cout << "unicode to utf : " << Utility::WideToUTF8(ujp) << std::endl;
+}
+
 void FractionTest() {
 	Utility::Fraction a(5, -12);
 	Utility::Fraction b(3, 8);

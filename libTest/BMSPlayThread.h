@@ -220,7 +220,7 @@ namespace bms {
 			while (mBgmIndex < mMaxBgmIndex && mListBgm[mBgmIndex].mTime < deltaVal) {
 				// music outside the error range is not played.
 				if (mListBgm[mBgmIndex].mTime > minTime) {
-					mFMOD.PlaySound(mListBgm[mBgmIndex].mKey);
+					mFMOD.PlaySingleSound(mListBgm[mBgmIndex].mKey);
 				}
 				//std::cout << "bgm play : " << mBgmIndex << std::endl;
 				mBgmIndex++;
@@ -228,7 +228,7 @@ namespace bms {
 			while (mNoteIndex < mMaxNoteIndex && mListNote[mNoteIndex].mTime < deltaVal) {
 				// play note (landmine doesn't have own sound == mute)
 				if (mListNote[mNoteIndex].mType != NoteType::LANDMINE && mListNote[mNoteIndex].mTime > minTime) {
-					mFMOD.PlaySound(mListNote[mNoteIndex].mKey);
+					mFMOD.PlaySingleSound(mListNote[mNoteIndex].mKey);
 				}
 				//std::cout << "note play : " << mNoteIndex << std::endl;
 				mNoteIndex++;

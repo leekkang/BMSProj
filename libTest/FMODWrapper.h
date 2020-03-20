@@ -141,7 +141,7 @@ namespace bms {
 		/// <summary>
 		/// play sound file in <paramref name="folderPath"/> dictionary.
 		/// </summary>
-		inline void PlaySound(int key) {
+		inline void PlaySingleSound(int key) {
 			FMOD::Sound* sound = mDicSound[key];
 			result = system->playSound(sound, 0, false, &channel);
 			IsJobFailed("PlaySound failed : " + key);
