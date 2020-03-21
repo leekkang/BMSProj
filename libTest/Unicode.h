@@ -8,7 +8,7 @@
 namespace Utility {
 	/// <summary> convert ANSI to Unicode </summary>
 	inline std::wstring AnsiToWide(const std::string& s) {
-		int uniLen = 0, ansiLen = s.length();
+		int uniLen = 0, ansiLen = static_cast<int>(s.length());
 		const char* ansi = s.data();
 		wchar_t* uni = NULL;
 
@@ -30,7 +30,7 @@ namespace Utility {
 
 	/// <summary> convert Unicode to ANSI </summary>
 	inline std::string WideToAnsi(const std::wstring& s) {
-		int ansiLen = 0, uniLen = s.length();
+		int ansiLen = 0, uniLen = static_cast<int>(s.length());
 		const wchar_t* uni = s.data();
 		char* ansi = NULL;
 
@@ -50,9 +50,17 @@ namespace Utility {
 		return result;
 	}
 
+	// TODO : assert this func
+	/*inline std::string WideToUTF8(const std::wstring& s) {
+		return std::wstring_convert<std::codecvt_utf8<wchar_t>>{}.to_bytes(s);
+	}
+	inline std::wstring UTF8ToWide(const std::string& s) {
+		return std::wstring_convert<std::codecvt_utf8<wchar_t>>{}.from_bytes(s);
+	}*/
+
 	/// <summary> convert Unicode to UTF-8 </summary>
 	inline std::string WideToUTF8(const std::wstring& s) {
-		int utfLen = 0, uniLen = s.length();
+		int utfLen = 0, uniLen = static_cast<int>(s.length());
 		const wchar_t* uni = s.data();
 		char* utf = NULL;
 
@@ -74,7 +82,7 @@ namespace Utility {
 
 	/// <summary> convert UTF-8 to Unicode </summary>
 	inline std::wstring UTF8ToWide(const std::string& s) {
-		int uniLen = 0, utfLen = s.length();
+		int uniLen = 0, utfLen = static_cast<int>(s.length());
 		const char* utf = s.data();
 		wchar_t* uni = NULL;
 
@@ -96,19 +104,19 @@ namespace Utility {
 
 	/// <summary> convert Multibyte(ANSI) to UTF-8 </summary>
 	inline std::string ToUTF8(const std::string& s) {
-		int uniLen = 0, utfLen = 0, ansiLen = s.length();
+		int uniLen = 0, utfLen = 0, ansiLen = static_cast<int>(s.length());
 		const char* ansi = s.data();
 		wchar_t* uni = NULL;
 		char* utf = NULL;
 
-		if ((uniLen = MultiByteToWideChar(CP_ACP, 0, ansi, strlen(ansi), NULL, 0)) <= 0)
+		if ((uniLen = MultiByteToWideChar(CP_ACP, 0, ansi, ansiLen, NULL, 0)) <= 0)
 			return 0;
 
 		uni = new wchar_t[uniLen + 1];
 		memset(uni, 0x00, sizeof(wchar_t)*(uniLen + 1));
 
 		// str ---> unicode
-		uniLen = MultiByteToWideChar(CP_ACP, 0, ansi, strlen(ansi), uni, uniLen);
+		uniLen = MultiByteToWideChar(CP_ACP, 0, ansi, ansiLen, uni, uniLen);
 
 		if ((utfLen = WideCharToMultiByte(CP_UTF8, 0, uni, uniLen, NULL, 0, NULL, NULL)) <= 0) {
 			delete[] uni;
@@ -131,7 +139,7 @@ namespace Utility {
 	}
 	/// <summary> convert UTF-8 to Multibyte(ANSI) </summary>
 	inline std::string ToAnsi(const std::string& s) {
-		int uniLen = 0, ansiLen = 0, utfLen = s.length();
+		int uniLen = 0, ansiLen = 0, utfLen = static_cast<int>(s.length());
 		const char* utf = s.data();
 		wchar_t* uni = NULL;
 		char* ansi = NULL;

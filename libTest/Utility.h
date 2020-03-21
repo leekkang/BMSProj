@@ -75,7 +75,7 @@ namespace Utility {
 		return static_cast<int>(_CSTD strtol(s, &_Eptr, base));
 	}
 	/// <summary> Simple string to floating point with no exception </summary>
-	inline int Stof(const char* s) noexcept {	// convert string to int
+	inline float Stof(const char* s) noexcept {	// convert string to int
 		char *_Eptr;
 		return _CSTD strtof(s, &_Eptr);
 	}
@@ -94,7 +94,7 @@ namespace Utility {
 	/// read file at <c>path</c> and stores it in <paramref name="result"/> vector
 	/// </summary>
 	inline bool ReadText(const std::string& path, std::vector<std::string>& result) {
-		std::ifstream file(path.data());
+		std::ifstream file(UTF8ToWide(path));
 		if (!file.is_open()) {
 			TRACE("The file does not exist in this path : " + path);
 			return false;

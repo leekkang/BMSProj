@@ -3,12 +3,84 @@
 
 #include <conio.h>
 #include <thread>
+#include <filesystem>
+#include <locale>
+#include <codecvt>
+
+namespace fs = std::experimental::filesystem; 
+void ShowListFile(std::string path) {
+	for (auto &p : fs::directory_iterator(path))  /*get directory */
+		std::cout << p.path().filename() << std::endl;   // get file name
+}
 
 int main() {
-	std::vector<std::string> paths = {"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
-									  "./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
-									  "./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
-	
+	/*std::string ko("땿뗴긐깋긢?긘깈깛");
+	std::locale m("japan");
+	std::cout.imbue(m);
+	std::cout << "ansi : " << ko << std::endl;
+	std::cout << "ansi to utf : " << Utility::ToUTF8(ko) << std::endl;
+	std::ifstream in(Utility::UTF8ToWide(u8"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml"));
+	std::locale loc(in.getloc());
+	std::locale loc2(".932");
+	std::locale loc3(".949");
+	std::string test;
+	std::wstring wt;
+	while (std::getline(in, test)) {
+		if (test.rfind("#TITLE", 0) == 0)
+			break;
+	}
+
+	std::string locale = setlocale(LC_ALL, "ja_JP");
+	std::cout << test << std::endl;
+	std::cout << locale << std::endl;
+	std::string test2(Utility::ToUTF8(test));
+	std::string locale2 = setlocale(LC_ALL, "ko_KR");
+	std::cout << Utility::ToAnsi(test2) << std::endl;
+
+	std::wstring wjp(L"虚空グラデーション");
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> conv1;
+	std::string u8str = conv1.to_bytes(wjp);
+	std::cout << "ansi : " << Utility::ToAnsi(u8str) << std::endl;
+	std::wstring wjp2 = conv1.from_bytes(u8str);
+	std::cout << (wjp == wjp2) << std::endl;
+
+	return 0;
+
+	bms::FMODWrapper fmod;
+	fmod.Init();
+
+	return 0;
+	for (auto &p : fs::directory_iterator("./")) {
+		std::cout << p.path().filename() << std::endl;   // get file name
+		if (fs::is_directory(p.path())) {
+			for (auto &p2 : fs::directory_iterator(p.path())) {
+				if (p2.path().extension() == ".ogg") {
+					fmod.CreateSound(p2.path().u8string(), 1);
+				}
+			}
+		}
+	}
+	*/
+	//std::cout << "test3" << std::endl;
+	//std::string test3(u8"./테스트/1.ogg");
+	//fmod.CreateSound(test3, 1);
+	//fmod.PlaySingleSound(1);
+
+	//char tets[100] = {0,};
+	//std::wstring wst2(L"루브잇");
+	//WideCharToMultiByte(CP_UTF8, 0, wst2.data(), -1, tets, 100/*sizeof(wst.data())*/, NULL, NULL);
+	//std::ofstream os("./test.bin", std::ios::binary);
+	//os << tets;
+	////bms::WriteToBinary(os, utf);
+	//os.close();
+
+	//return 0;
+
+	std::vector<std::string> paths = {u8"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
+									  u8"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
+									  u8"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
+									  u8"./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
+
 	};
 	/*bms::BMSData d("./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme");
 	std::ofstream os("./test.bin", std::ios::binary);
@@ -24,6 +96,7 @@ int main() {
 
 	return 0;*/
 
+	//std::string locale = setlocale(LC_ALL, "ja_JP");
 	int pathIndex = 0;
 	int max = static_cast<int>(paths.size() - 1);
 	std::string folderPath = Utility::GetDirectory(paths[pathIndex]);
