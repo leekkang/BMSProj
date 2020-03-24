@@ -5,6 +5,7 @@
 
 // reference : https://jacking75.github.io/cpp_StringEncoding/
 //			   https://doitnow-man.tistory.com/211
+//			   https://codingtidbit.com/2020/02/09/c17-codecvt_utf8-is-deprecated/
 namespace Utility {
 	/// <summary> convert ANSI to Unicode </summary>
 	inline std::wstring AnsiToWide(const std::string& s) {
@@ -50,7 +51,7 @@ namespace Utility {
 		return result;
 	}
 
-	// TODO : assert this func
+	// TODO : assert this func -> deprecated in C++ 17
 	/*inline std::string WideToUTF8(const std::wstring& s) {
 		return std::wstring_convert<std::codecvt_utf8<wchar_t>>{}.to_bytes(s);
 	}
@@ -60,44 +61,24 @@ namespace Utility {
 
 	/// <summary> convert Unicode to UTF-8 </summary>
 	inline std::string WideToUTF8(const std::wstring& s) {
-		int utfLen = 0, uniLen = static_cast<int>(s.length());
-		const wchar_t* uni = s.data();
-		char* utf = NULL;
-
-		if ((utfLen = WideCharToMultiByte(CP_UTF8, 0, uni, uniLen, NULL, 0, NULL, NULL)) <= 0) {
-			return 0;
+		if (s.empty()) {
+			return std::string();
 		}
-
-		utf = new char[utfLen + 1];
-		memset(utf, 0x00, sizeof(char)*(utfLen + 1));
-
-		utfLen = WideCharToMultiByte(CP_UTF8, 0, uni, uniLen, utf, utfLen, NULL, NULL);
-		utf[utfLen] = 0;
-
-		std::string result(utf);
-		delete[] utf;
+		int utfLen = WideCharToMultiByte(CP_UTF8, 0, &s[0], static_cast<int>(s.length()), NULL, 0, NULL, NULL);
+		std::string result(utfLen, 0);
+		WideCharToMultiByte(CP_UTF8, 0, &s[0], static_cast<int>(s.length()), &result[0], utfLen, NULL, NULL);
 
 		return result;
 	}
 
 	/// <summary> convert UTF-8 to Unicode </summary>
 	inline std::wstring UTF8ToWide(const std::string& s) {
-		int uniLen = 0, utfLen = static_cast<int>(s.length());
-		const char* utf = s.data();
-		wchar_t* uni = NULL;
-
-		if ((uniLen = MultiByteToWideChar(CP_UTF8, 0, utf, utfLen, NULL, 0)) <= 0) {
-			return 0;
+		if (s.empty()) {
+			return std::wstring();
 		}
-
-		uni = new wchar_t[uniLen + 1];
-		memset(uni, 0x00, sizeof(wchar_t)*(uniLen + 1));
-
-		uniLen = MultiByteToWideChar(CP_UTF8, 0, utf, utfLen, uni, uniLen);
-		uni[uniLen] = 0;
-
-		std::wstring result(uni);
-		delete[] uni;
+		int uniLen = MultiByteToWideChar(CP_UTF8, 0, &s[0], static_cast<int>(s.length()), NULL, 0);
+		std::wstring result(uniLen, 0);
+		MultiByteToWideChar(CP_UTF8, 0, &s[0], static_cast<int>(s.length()), &result[0], uniLen);
 
 		return result;
 	}
@@ -171,6 +152,8 @@ namespace Utility {
 
 		return result;
 	}
+
+	//inline std::stringstream ConvertWide(const )
 
 	// reference : https://stackoverflow.com/questions/17562736/how-to-convert-from-utf-8-to-str-using-standard-c
 	/*inline std::string StringToUTF8(const std::string& str, const std::locale& loc = std::locale{}) {

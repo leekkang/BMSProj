@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <locale>
 #include <codecvt>
+#include <sstream>
 
 namespace fs = std::experimental::filesystem; 
 void ShowListFile(std::string path) {
@@ -14,6 +15,41 @@ void ShowListFile(std::string path) {
 }
 
 int main() {
+	/*std::wofstream wof;
+	wof.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::generate_header>));
+	wof.open(L"file.txt");
+	wof << L"--\n";
+	wof << L"虚空グラデーション\n";
+	wof << L"abcde";
+	wof.close();*/
+
+	std::string ws;
+	std::string modified;
+	bms::BMSifstream win(L"utfbom.bml");
+	win.GetLine(ws);
+	std::cout << Utility::ToAnsi(ws) + '\n';
+	win.GetLine(ws);
+	std::cout << Utility::ToAnsi(ws) + '\n';
+	win.GetLine(ws);
+	std::cout << Utility::ToAnsi(ws) + '\n';
+	modified = Utility::ToAnsi(ws);
+
+	std::wstring wf;
+	//win.open("utfle.bml");
+
+	std::string jp;
+	//std::ifstream in("jp.bml");
+	//std::getline(in, jp);
+	//in.close();
+	std::cout << jp << std::endl;
+	std::string utf = Utility::ToUTF8(jp);
+	std::cout << Utility::ToUTF8(jp) << std::endl;
+
+	std::string locale = setlocale(LC_ALL, "ja_JP"); // Shift_JIS
+	// std::string locale = setlocale(LC_ALL, "ja_JP");
+	std::cout << jp << std::endl;
+	std::cout << std::hex << utf << std::endl;
+	return 0;
 	/*std::string ko("땿뗴긐깋긢?긘깈깛");
 	std::locale m("japan");
 	std::cout.imbue(m);
@@ -76,6 +112,7 @@ int main() {
 
 	//return 0;
 
+	std::ios::sync_with_stdio(false);
 	std::vector<std::string> paths = {u8"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
 									  u8"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
 									  u8"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",

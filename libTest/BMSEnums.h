@@ -66,4 +66,14 @@ namespace bms {
 		/// </summary>
 		MGQ_TYPE = 3,
 	};
+
+	enum class EncodingType : char {
+		UNKNOWN = 0,
+		EUC_KR = 1,			// ANSI, Korean
+		SHIFT_JIS = 2,		// ANSI, Japanese
+		UTF_8 = 3,			// Unicode Transformation Format
+		UTF_8BOM = 4,		// Unicode Transformation Format with Byte Order Mark
+		UTF_16BE = 5,		// Universal Character Set Big Endian	 ex) 0x00 0x80
+		UTF_16LE = 6,		// Universal Character Set Little Endian	 ex) 0x80 0x00
+	};
 }
