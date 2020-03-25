@@ -16,11 +16,22 @@ namespace bms {
 
 	class BMSifstream {
 	public:
-		BMSifstream(const wchar_t* path, EncodingType type = EncodingType::UNKNOWN) {
+		BMSifstream(const wchar_t* path) {
+			Open(path);
+		};
+		~BMSifstream() = default;
+		DISALLOW_COPY_AND_ASSIGN(BMSifstream)
+
+		/// <summary> Open ifstream and set the information according to the type of encoding read. </summary>
+		bool Open(const wchar_t* path) {
+			if (file.is_open()) {
+				file.close();
+			}
+
 			file.open(path, std::ios_base::binary);
 			if (!file.is_open()) {
 				TRACE("The file does not exist in this path : " + Utility::WideToAnsi(path));
-				return;
+				return false;
 			}
 			std::filebuf* pbuf = file.rdbuf();
 			pbuf->pubsetbuf(bufInternal, BUFFER_SIZE);
@@ -30,6 +41,7 @@ namespace bms {
 			uint8_t second = pbuf->sbumpc();
 
 			// check charset
+			// unknown means that the file is one of three types: EUC_KR, SHIFT_JIS, and UTF_8.
 			if (first == 254 && second == 255) {
 				mType = EncodingType::UTF_16BE;
 				getLine = &bms::BMSifstream::getLineUTF16BE;
@@ -48,15 +60,19 @@ namespace bms {
 			}
 
 			// initialize
-			readIndex = 0;
-			file.read(bufRead, READ_BUFFER_SIZE);
-			readCount = static_cast<uint16_t>(file.gcount());
-		};
-		~BMSifstream() = default;
-		DISALLOW_COPY_AND_ASSIGN(BMSifstream)
+			bEof = false;
+			readIndex = readCount = READ_BUFFER_SIZE;
+
+			return true;
+		}
+
+		inline bool IsOpen() {
+			return file.is_open();
+		}
 
 		/// <summary> 
 		/// Read a line from the file stream and fill it with <paramref name="line"/> parameters.
+		/// caution : In case of EncodingType::UTF_16 BE or LE, it is automatically converted to UTF-8.
 		/// </summary>
 		/// <param name="bSkipEmpty"> if it is true, ignore blank lines and read again </param>
 		bool GetLine(std::string& line, bool bSkipEmpty = true) {
