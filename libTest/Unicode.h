@@ -86,7 +86,7 @@ namespace Utility {
 
 	// reference : https://stackoverflow.com/questions/28270310/how-to-easily-detect-utf8-encoding-in-the-string
 	/// <summary> check if it is UTF-8 string </summary>
-	inline bool IsValidUTF8(const char * str) {
+	inline bool IsValidUTF8(const char* str) {
 		if (!str) return true;
 
 		const unsigned char* bytes = (const unsigned char *)str;
@@ -132,10 +132,6 @@ namespace Utility {
 
 		return true;
 	}
-
-	/*inline bms::EncodingType GetEncodeType(const std::string& str) {
-
-	}*/
 
 	/*
 	/// <summary> convert ANSI to Unicode </summary>
@@ -268,8 +264,9 @@ namespace Utility {
 		return result;
 	}
 	*/
+	/*
 	// reference : https://stackoverflow.com/questions/17562736/how-to-convert-from-utf-8-to-str-using-standard-c
-	/*inline std::string StringToUTF8(const std::string& str, const std::locale& loc = std::locale{}) {
+	inline std::string StringToUTF8(const std::string& str, const std::locale& loc = std::locale{}) {
 		using wcvt = std::wstring_convert<std::codecvt_utf8<int32_t>, int32_t>;
 		std::u32string wstr(str.size(), U'\0');
 		std::use_facet<std::ctype<char32_t>>(loc).widen(str.data(), str.data() + str.size(), &wstr[0]);
@@ -287,5 +284,6 @@ namespace Utility {
 			reinterpret_cast<const char32_t*>(wstr.data() + wstr.size()),
 			'?', &result[0]);
 		return result;
-	}*/
+	}
+	*/
 }

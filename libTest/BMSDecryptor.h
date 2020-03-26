@@ -254,6 +254,29 @@ namespace bms {
 
 			return true;
 		}
+
+		/// <summary>
+		/// check what type <paramref name="str"/> is.
+		/// check order : UTF-8(include english only) -> EUC_KR(expended to CP949) -> Shift-jis(default)
+		/// </summary>
+		inline bms::EncodingType GetEncodeType(const std::string& str) {
+			// if english only string, return UTF-8
+			if (Utility::IsValidUTF8(str.data())) {
+				return bms::EncodingType::UTF_8;
+			}
+
+			std::wstring kws = Utility::AnsiToWide(str, std::locale("Korean"));
+			std::wstring jws = Utility::AnsiToWide(str, std::locale("Japanese"));
+			// If both locales are converted successfully, it is likely to be Japanese. 
+			// because EUC-KR contains Japanese characters, but Shift-jis does not.
+			if (kws.size() != 0 && jws.size() != 0) {
+				return Utility::WideToAnsi(jws, std::locale("Korean")).size() == 0 ?
+					bms::EncodingType::EUC_KR : bms::EncodingType::SHIFT_JIS;
+			}
+
+			return jws.size() == 0 ? bms::EncodingType::EUC_KR :
+				bms::EncodingType::SHIFT_JIS;
+		}
 	};
 
 	/// <summary>

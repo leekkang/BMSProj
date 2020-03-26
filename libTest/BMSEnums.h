@@ -69,7 +69,7 @@ namespace bms {
 
 	enum class EncodingType : char {
 		UNKNOWN = 0,
-		EUC_KR = 1,			// ANSI, Korean
+		EUC_KR = 1,			// ANSI, Korean (Expended to CP949)
 		SHIFT_JIS = 2,		// ANSI, Japanese
 		UTF_8 = 3,			// Unicode Transformation Format
 		UTF_8BOM = 4,		// Unicode Transformation Format with Byte Order Mark

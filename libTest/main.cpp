@@ -31,6 +31,29 @@ void ShowListFile(std::string path) {
 		std::cout << p.path().filename() << std::endl;   // get file name
 }
 
+/// <summary>
+/// check what type <paramref name="str"/> is.
+/// check order : UTF-8(include english only) -> EUC_KR(expended to CP949) -> Shift-jis(default)
+/// </summary>
+inline bms::EncodingType GetEncodeType(const std::string& str) {
+	// if english only string, return UTF-8
+	if (Utility::IsValidUTF8(str.data())) {
+		return bms::EncodingType::UTF_8;
+	}
+
+	std::wstring kws = Utility::AnsiToWide(str, std::locale("Korean"));
+	std::wstring jws = Utility::AnsiToWide(str, std::locale("Japanese"));
+	// If both locales are converted successfully, it is likely to be Japanese. 
+	// because EUC-KR contains Japanese characters, but Shift-jis does not.
+	if (kws.size() != 0 && jws.size() != 0) {
+		return Utility::WideToAnsi(jws, std::locale("Korean")).size() == 0 ? 
+			bms::EncodingType::EUC_KR : bms::EncodingType::SHIFT_JIS;
+	}
+
+	return jws.size() == 0 ? bms::EncodingType::EUC_KR : 
+							 bms::EncodingType::SHIFT_JIS;
+}
+
 int main() {
 	//PrintAllLocales();
 
@@ -42,53 +65,29 @@ int main() {
 	std::string str2;
 	std::getline(is, str2);
 	is.close();
-	is.open("utf.bml");
+	is.open("jp2.bml");
 	std::string str3;
 	std::getline(is, str3);
 	is.close();
-	std::cout << "is utf(jp) : " << Utility::IsValidUTF8(str.data()) << '\n' << std::endl;
-	std::cout << "is utf(ko) : " << Utility::IsValidUTF8(str2.data()) << '\n' << std::endl;
-	std::cout << "is utf(utf) : " << Utility::IsValidUTF8(str3.data()) << '\n' << std::endl;
-	std::wstring ws1 = Utility::AnsiToWide(str, std::locale("Korean"));
-	std::wstring ws2 = Utility::AnsiToWide(str2, std::locale("Japanese"));
-	std::wstring ws3 = Utility::AnsiToWide(str, std::locale("Japanese"));
-	std::wstring ws4 = Utility::AnsiToWide(str2, std::locale("Korean"));
-
-	std::cout << "convert jp file using Korean -> size : " << ws1.size() << std::endl;
-	std::cout << "convert ko file using Japanese -> size : " << ws2.size() << std::endl;
-	std::cout << "convert jp file using Japanese -> size : " << ws3.size() << std::endl;
-	std::cout << "convert ko file using Korean -> size : " << ws4.size() << std::endl;
-	return 0;
-
-	auto convert = [](const std::string& str, bms::EncodingType src, bms::EncodingType dst) -> std::string {
-		if (str.empty()) {
-			return std::string();
-		}
-		int srcCodepage = src == bms::EncodingType::EUC_KR ? 949 : 932;
-		int dstCodepage = dst == bms::EncodingType::EUC_KR ? 949 : 932;
-
-		const char* ansi = str.data();
-		int ansiLen = static_cast<int>(str.length());
-
-		int uniLen = MultiByteToWideChar(srcCodepage, 0, ansi, ansiLen, NULL, 0);
-		wchar_t* uni = new wchar_t[uniLen + 1];
-		MultiByteToWideChar(srcCodepage, 0, ansi, ansiLen, uni, uniLen);
-		uni[uniLen] = 0;
-
-		ansiLen = WideCharToMultiByte(dstCodepage, 0, uni, uniLen, NULL, 0, NULL, NULL);
-		std::string result(ansiLen, 0);
-		WideCharToMultiByte(dstCodepage, 0, uni, uniLen, &result[0], ansiLen, NULL, NULL);
-
-		delete[] uni;
-		return result;
-	};
-
-	std::string ko = convert(str, bms::EncodingType::SHIFT_JIS, bms::EncodingType::EUC_KR);
-	std::string jp = convert(ko, bms::EncodingType::EUC_KR, bms::EncodingType::SHIFT_JIS);
-	std::cout << "ko convert : " << convert(str, bms::EncodingType::SHIFT_JIS, bms::EncodingType::EUC_KR) << '\n' << std::endl;
+	is.open("ko2.bml");
+	std::string str4;
+	std::getline(is, str4);
+	is.close();
+	
+	bms::EncodingType e1 = GetEncodeType(str);
+	bms::EncodingType e2 = GetEncodeType(str2);
+	bms::EncodingType e3 = GetEncodeType(str3);
+	bms::EncodingType e4 = GetEncodeType(str4);
+	std::cout << "jp type : " << (e1 == bms::EncodingType::UTF_8 ? "UTF" : 
+								 (e1 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
+	std::cout << "kr type : " << (e2 == bms::EncodingType::UTF_8 ? "UTF" :
+								 (e2 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
+	std::cout << "jp type : " << (e3 == bms::EncodingType::UTF_8 ? "UTF" :
+								  (e3 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
+	std::cout << "kr type : " << (e4 == bms::EncodingType::UTF_8 ? "UTF" :
+								 (e4 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
 
 	return 0;
-
 
 	//bms::FMODWrapper fmod;
 	//fmod.Init();
