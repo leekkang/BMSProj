@@ -250,8 +250,8 @@ void BMSDecryptor::MakeTimeSegment() {
 		} else if (obj.mChannel == Channel::CHANGE_BPM ||
 				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
 			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mDicBpm[obj.mValue];
-			mBmsData.mMinBpm = min(mBmsData.mMinBpm, curBpm);
-			mBmsData.mMaxBpm = max(mBmsData.mMaxBpm, curBpm);
+			mBmsData.mMinBpm = std::min(mBmsData.mMinBpm, curBpm);
+			mBmsData.mMaxBpm = std::max(mBmsData.mMaxBpm, curBpm);
 			mBmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
 		}
 

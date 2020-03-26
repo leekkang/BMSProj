@@ -155,10 +155,11 @@ namespace bms {
 					}
 				}
 
-				int utfLen = WideCharToMultiByte(CP_UTF8, 0, temp, static_cast<int>(length), NULL, 0, NULL, NULL);
+				str.append(Utility::WideToUTF8(temp));
+				/*int utfLen = WideCharToMultiByte(CP_UTF8, 0, temp, static_cast<int>(length), NULL, 0, NULL, NULL);
 				uint16_t originLen = static_cast<uint16_t>(str.size());
 				str.resize(originLen + utfLen);
-				WideCharToMultiByte(CP_UTF8, 0, temp, static_cast<int>(length), &str[originLen], utfLen, NULL, NULL);
+				WideCharToMultiByte(CP_UTF8, 0, temp, static_cast<int>(length), &str[originLen], utfLen, NULL, NULL);*/
 				delete[] temp;
 			} else {
 				char* temp = new char[length];
