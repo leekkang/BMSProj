@@ -5,7 +5,7 @@ namespace bms {
 	/// specify channel type
 	/// reference : http://hitkey.nekokan.dyndns.info/cmds.htm#CHANNEL
 	/// </summary>
-	enum class Channel : short {
+	enum class Channel : uint16_t {
 		BGM = 1,
 		MEASURE_LENGTH = 2,
 		CHANGE_BPM = 3,
@@ -39,7 +39,7 @@ namespace bms {
 	};
 
 	/// <summary> specify note type </summary>
-	enum class NoteType : char {
+	enum class NoteType : uint8_t {
 		NORMAL,
 		LONG,
 		INVISIBLE,	// used to change the sound of user input keys
@@ -47,7 +47,7 @@ namespace bms {
 	};
 	
 	/// <summary> specify long note expression type written in bms file </summary>
-	enum class LongnoteType : char {
+	enum class LongnoteType : uint8_t {
 		/// <summary> 
 		/// Channels 5x and 6x are used, and the value between the first and last notes is filled with zeros.
 		/// The end note is a nonzero key value that is meaningless.
@@ -67,7 +67,7 @@ namespace bms {
 		MGQ_TYPE = 3,
 	};
 
-	enum class EncodingType : char {
+	enum class EncodingType : uint8_t {
 		UNKNOWN = 0,
 		EUC_KR = 1,			// ANSI, Korean (Expended to CP949)
 		SHIFT_JIS = 2,		// ANSI, Japanese

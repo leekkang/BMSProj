@@ -88,6 +88,63 @@ namespace bms {
 		inline bool IsLongNote() { return mEndBeat.mNumerator != 0; }
 	};
 
+	/// <summary>
+	/// A class that has a list as a variable for object pooling
+	/// </summary>
+	template <typename T>
+	class ListPool {
+	private:
+		std::vector<T> mList;
+		uint32_t mSize;		// number of data the container has (different from mList.capacity)
+		uint32_t mCount;	// Actual number of meaningful data
+
+	public:
+		ListPool(uint32_t size = 0) : mSize(size), mCount(0) {
+			if (size != 0) {
+				mList.resize(size);
+			}
+		}
+		~ListPool() = default;
+		DISALLOW_COPY_AND_ASSIGN(ListPool)
+			ListPool(ListPool&& others) noexcept = default;
+		ListPool& operator=(ListPool&&) noexcept = default;
+
+		inline void reserve(uint32_t capacity) {
+			mList.reserve(capacity);
+		}
+		inline void resize(uint32_t size) {
+			if (mSize < size) {
+				mList.resize(size);
+				mSize = size;
+			}
+		}
+		inline uint32_t size() {
+			return mCount;
+		}
+
+		ListPool& operator[](const uint32_t pos) {
+			return mList[pos];
+		}
+
+		void push(const T& val) {
+			if (mCount < mSize) {
+				mList[mCount] = val;
+			} else {
+				mList.emplace_back(val);
+				++mSize;
+			}
+			++mCount;
+		}
+		void push(T&& val) noexcept {
+			if (mCount < mSize) {
+				mList[mCount] = std::move(val);
+			} else {
+				mList.emplace_back(std::move(val));
+				++mSize;
+			}
+			++mCount;
+		}
+	};
 
 	// -- bms struct serializer overriding --
 

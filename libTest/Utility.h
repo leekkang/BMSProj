@@ -65,8 +65,80 @@ namespace Utility {
 		return s.erase(0, s.find_first_not_of(drop));
 	}
 
-	inline bool HasChar(const std::string& s, size_t index, char ch) {
-		return s.size() > index && s[index] == ch;
+	/// <summary> Simple string compare for prefix </summary>
+	constexpr bool StartsWith(const char* str, const char* prefix) {
+		while (*prefix && *str) {
+			if (*str++ != *prefix++)
+				return false;
+		}
+		return !(*prefix);
+	}
+
+	// strtoi source code : https://github.com/gcc-mirror/gcc/blob/master/libiberty/strtol.c
+	/// <summary> Simple string parse to integer with no exception </summary>
+	constexpr int parseInt(const char* p, const int length = 0, const int radix = 10) noexcept {
+		while (*p == ' ') {
+			++p;
+		}
+
+		int sign = 1;
+		if (*p == '-') {
+			sign = -1; ++p;
+		} else if (*p == '+') {
+			++p;
+		}
+
+		bool hasLimit = length != 0;
+		char c = *p;
+		const char* pstart = p;
+		int acc = 0;
+		while (hasLimit ? (p - pstart) < length : *p) {
+			if (*p >= '0' && *p <= '9') {
+				c -= '0';
+			} else if (*p >= 'A' && *p <= 'Z') {
+				c -= 'A' - 10;
+			} else if (*p >= 'a' && *p <= 'z') {
+				c -= 'a' - 10;
+			} else {
+				break;
+			}
+			if (c >= radix) {
+				break;
+			}
+			acc = acc * radix + c;
+			c = *++p;
+		}
+
+		return sign * acc;
+	}
+	// strtof source code : https://github.com/ochafik/LibCL/blob/master/src/main/resources/LibCL/strtof.c
+	/// <summary> Simple string parse to floating point with no exception </summary>
+	constexpr double parseFloat(const char* p) noexcept {
+		while (*p == ' ') {
+			++p;
+		}
+
+		int sign = 1;
+		if (*p == '-') {
+			sign = -1; ++p;
+		} else if (*p == '+') {
+			++p;
+		}
+
+		double acc = 0;
+		while (*p >= '0' && *p <= '9') {
+			acc = acc * 10 + *p++ - '0';
+		}
+
+		if (*p++ == '.') {
+			double k = 0.1;
+			while (*p >= '0' && *p <= '9') {
+				acc += (*p++ - '0') * k;
+				k *= 0.1;
+			}
+		}
+
+		return sign * acc;
 	}
 
 	/// <summary> Simple string to integer with no exception </summary>
@@ -74,6 +146,7 @@ namespace Utility {
 		char *_Eptr;
 		return static_cast<int>(_CSTD strtol(s, &_Eptr, base));
 	}
+	// strtof source code : https://github.com/ochafik/LibCL/blob/master/src/main/resources/LibCL/strtof.c
 	/// <summary> Simple string to floating point with no exception </summary>
 	inline float Stof(const char* s) noexcept {	// convert string to int
 		char *_Eptr;

@@ -20,7 +20,7 @@ bool BMSAdapter::Make(const std::string& path) {
 	BMSDecryptor decryptor(path, lines);
 
 	s = clock();
-	if (!decryptor.Build()) {
+	if (!decryptor.Build(true)) {
 		LOG("parse bms failed : " + path);
 		return false;
 	}

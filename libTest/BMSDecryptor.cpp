@@ -4,14 +4,95 @@
 using namespace bms;
 
 /// <summary>
+/// read file and build for fill data in header. no file dictionary is created.
+/// </summary>
+/// <returns> return <see cref="bms::BMSPreviewData"/> object if all line is correctly saved </returns>
+BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
+	BMSifstream in(path);
+	if (!in.IsOpen()) {
+		TRACE("The file does not exist in this path : " + Utility::WideToUTF(path));
+		return BMSInfoData();
+	}
+
+	BMSInfoData data(path);
+	// declare instant variable for parse
+	bool isHeader = true;
+	uint16_t wavCnt = 0, rndCnt = 0, measureCnt = 0;
+	char prevMeasure[4] = {0,};
+
+	std::string line;
+	line.reserve(1024);
+	while (in.GetLine(line, true)) {
+		const char* pLine = line.data();
+		// check incorrect line
+		if (*pLine != '#') {
+			continue;
+		}
+
+		// separate header line and body line
+		if (isHeader && *(pLine + 1) == '0') {	// '0' means that measure 000 is start
+			isHeader = false;
+		}
+
+		size_t length = line.size();
+		if (isHeader) {
+			if (Utility::StartsWith(pLine, "#WAV") && length > 7) {
+				++wavCnt;
+			} else if (Utility::StartsWith(pLine, "#BPM") && *(pLine + 4) == ' ') {
+				data.mBpm = mBmsData.mMinBpm = mBmsData.mMaxBpm = Utility::parseInt(pLine + 5);
+			} else if (Utility::StartsWith(pLine, "#PLAYER") && length > 8) {
+				data.mPlayer = Utility::parseInt(pLine + 8);
+			} else if (Utility::StartsWith(pLine, "#PLAYLEVEL") && length > 11) {
+				data.mLevel = Utility::parseInt(pLine + 11);
+			} else if (Utility::StartsWith(pLine, "#DIFFICULTY") && length > 12) {
+				data.mDifficulty = Utility::parseInt(pLine + 12);
+			} else if (Utility::StartsWith(pLine, "#GENRE") && length > 7) {
+				data.mGenre = std::string(pLine + 7);
+			} else if (Utility::StartsWith(pLine, "#TITLE") && length > 7) {
+				data.mTitle = std::string(pLine + 7);
+			} else if (Utility::StartsWith(pLine, "#ARTIST") && length > 8) {
+				data.mArtist = std::string(pLine + 8);
+			}
+		} else {
+			if (length > 8 && *(pLine + 6) == ':') {
+				if (!Utility::StartsWith(prevMeasure, pLine + 1)) {
+					uint16_t measure = Utility::parseInt(pLine + 1, 3);
+					if (measureCnt < measure) {
+						measureCnt = measure;
+					}
+
+					memcpy(prevMeasure, pLine + 1, 3);
+				}
+			} else if (Utility::StartsWith(pLine, "#RANDOM")) {
+				++rndCnt;
+			}
+		}
+	}
+
+	data.mWavCount = wavCnt;
+	data.mRndCount = rndCnt;
+	data.mMeasureCount = measureCnt;
+
+	EncodingType type = in.GetEncodeType();
+	if (type == EncodingType::UNKNOWN) {
+		type = GetEncodeType(data.mGenre + data.mTitle + data.mArtist);
+	}
+	data.mFileType = type;
+
+	return data;
+}
+
+/// <summary>
 /// build using line in <paramref name="lines"/> list for fill data in header or body
 /// </summary>
+/// <param name="bPreview"> Read only information for previewing </param>
 /// <returns> return true if all line is correctly saved </returns>
-bool BMSDecryptor::Build() {
+bool BMSDecryptor::Build(bool bPreview) {
 	if (mListRaw.size() == 0) {
 		TRACE("Bms file is empty.");
 		return false;
 	}
+	std::stack<uint32_t> randomStack;
 
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.

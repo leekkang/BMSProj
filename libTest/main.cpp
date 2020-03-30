@@ -31,63 +31,23 @@ void ShowListFile(std::string path) {
 		std::cout << p.path().filename() << std::endl;   // get file name
 }
 
-/// <summary>
-/// check what type <paramref name="str"/> is.
-/// check order : UTF-8(include english only) -> EUC_KR(expended to CP949) -> Shift-jis(default)
-/// </summary>
-inline bms::EncodingType GetEncodeType(const std::string& str) {
-	// if english only string, return UTF-8
-	if (Utility::IsValidUTF8(str.data())) {
-		return bms::EncodingType::UTF_8;
-	}
-
-	std::wstring kws = Utility::AnsiToWide(str, std::locale("Korean"));
-	std::wstring jws = Utility::AnsiToWide(str, std::locale("Japanese"));
-	// If both locales are converted successfully, it is likely to be Japanese. 
-	// because EUC-KR contains Japanese characters, but Shift-jis does not.
-	if (kws.size() != 0 && jws.size() != 0) {
-		return Utility::WideToAnsi(jws, std::locale("Korean")).size() == 0 ? 
-			bms::EncodingType::EUC_KR : bms::EncodingType::SHIFT_JIS;
-	}
-
-	return jws.size() == 0 ? bms::EncodingType::EUC_KR : 
-							 bms::EncodingType::SHIFT_JIS;
-}
-
 int main() {
+	std::vector<int> t{1, 2, 3, 4, 5};
+	t.resize(10, 0);
+	t.reserve(20);
+	t.resize(3, 0);
+	t.reserve(10);
+	std::string str("prefix10ag");
+	std::string prefix("prefix");
+	std::cout << Utility::parseInt(str.data() + 6, 2, 36) << std::endl;
+	std::cout << Utility::StartsWith(str.data(), prefix.data()) << std::endl;
+
+	bms::ListPool<int> p(2);
+	p.push(1);
+	p.push(3);
+	p.push(4);
+	p.push(2);
 	//PrintAllLocales();
-
-	std::ifstream is("jp.bml");
-	std::string str;
-	std::getline(is, str);
-	is.close();
-	is.open("ko.bml");
-	std::string str2;
-	std::getline(is, str2);
-	is.close();
-	is.open("jp2.bml");
-	std::string str3;
-	std::getline(is, str3);
-	is.close();
-	is.open("ko2.bml");
-	std::string str4;
-	std::getline(is, str4);
-	is.close();
-	
-	bms::EncodingType e1 = GetEncodeType(str);
-	bms::EncodingType e2 = GetEncodeType(str2);
-	bms::EncodingType e3 = GetEncodeType(str3);
-	bms::EncodingType e4 = GetEncodeType(str4);
-	std::cout << "jp type : " << (e1 == bms::EncodingType::UTF_8 ? "UTF" : 
-								 (e1 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
-	std::cout << "kr type : " << (e2 == bms::EncodingType::UTF_8 ? "UTF" :
-								 (e2 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
-	std::cout << "jp type : " << (e3 == bms::EncodingType::UTF_8 ? "UTF" :
-								  (e3 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
-	std::cout << "kr type : " << (e4 == bms::EncodingType::UTF_8 ? "UTF" :
-								 (e4 == bms::EncodingType::EUC_KR ? "kr" : "jp")) << '\n' << std::endl;
-
-	return 0;
 
 	//bms::FMODWrapper fmod;
 	//fmod.Init();
