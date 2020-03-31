@@ -99,14 +99,10 @@ namespace bms {
 		uint32_t mCount;	// Actual number of meaningful data
 
 	public:
-		ListPool(uint32_t size = 0) : mSize(size), mCount(0) {
-			if (size != 0) {
-				mList.resize(size);
-			}
-		}
+		ListPool(uint32_t size = 0) : mList(size), mSize(size), mCount(0) {}
 		~ListPool() = default;
 		DISALLOW_COPY_AND_ASSIGN(ListPool)
-			ListPool(ListPool&& others) noexcept = default;
+		ListPool(ListPool&& others) noexcept = default;
 		ListPool& operator=(ListPool&&) noexcept = default;
 
 		inline void reserve(uint32_t capacity) {
@@ -148,60 +144,53 @@ namespace bms {
 
 	// -- bms struct serializer overriding --
 
-	inline void WriteToBinaryImpl(std::ostream& os, const bms::LongnoteType& v) {
-		WriteToBinary<char>(os, static_cast<char>(v));
-	}
-	inline void ReadFromBinaryImpl(std::istream& is, bms::LongnoteType& v) {
-		v = static_cast<bms::LongnoteType>(ReadFromBinary<char>(is));
-	}
+	//inline void WriteToBinaryImpl(std::ostream& os, const bms::BeatFraction& v) {
+	//	if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::BeatFraction))) {
+	//		throw std::ios_base::failure(std::string{"writing type 'bms::BeatFraction' failed"});
+	//	}
+	//}
+	//inline void ReadFromBinaryImpl(std::istream& is, bms::BeatFraction& v) {
+	//	if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::BeatFraction))) {
+	//		throw std::ios_base::failure(std::string{"reading type 'bms::BeatFraction' failed"});
+	//	}
+	//}
 
-	inline void WriteToBinaryImpl(std::ostream& os, const bms::BeatFraction& v) {
-		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::BeatFraction))) {
-			throw std::ios_base::failure(std::string{"writing type 'bms::BeatFraction' failed"});
-		}
-	}
-	inline void ReadFromBinaryImpl(std::istream& is, bms::BeatFraction& v) {
-		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::BeatFraction))) {
-			throw std::ios_base::failure(std::string{"reading type 'bms::BeatFraction' failed"});
-		}
-	}
+	//inline void WriteToBinaryImpl(std::ostream& os, const bms::TimeSegment& v) {
+	//	if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::TimeSegment))) {
+	//		throw std::ios_base::failure(std::string{"writing type 'bms::TimeSegment' failed"});
+	//	}
+	//	/*WriteToBinary<long long>(os, v.mCurTime);
+	//	WriteToBinary<double>(os, v.mCurBpm);
+	//	WriteToBinary<bms::BeatFraction>(os, v.mCurBeat);*/
+	//}
+	//inline void ReadFromBinaryImpl(std::istream& is, bms::TimeSegment& v) {
+	//	if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::TimeSegment))) {
+	//		throw std::ios_base::failure(std::string{"reading type 'bms::TimeSegment' failed"});
+	//	}
+	//	/*v.mCurTime = ReadFromBinary<long long>(is);
+	//	v.mCurBpm = ReadFromBinary<double>(is);
+	//	v.mCurBeat = ReadFromBinary<bms::BeatFraction>(is);*/
+	//}
 
-	inline void WriteToBinaryImpl(std::ostream& os, const bms::TimeSegment& v) {
-		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::TimeSegment))) {
-			throw std::ios_base::failure(std::string{"writing type 'bms::TimeSegment' failed"});
-		}
-		/*WriteToBinary<long long>(os, v.mCurTime);
-		WriteToBinary<double>(os, v.mCurBpm);
-		WriteToBinary<bms::BeatFraction>(os, v.mCurBeat);*/
-	}
-	inline void ReadFromBinaryImpl(std::istream& is, bms::TimeSegment& v) {
-		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::TimeSegment))) {
-			throw std::ios_base::failure(std::string{"reading type 'bms::TimeSegment' failed"});
-		}
-		/*v.mCurTime = ReadFromBinary<long long>(is);
-		v.mCurBpm = ReadFromBinary<double>(is);
-		v.mCurBeat = ReadFromBinary<bms::BeatFraction>(is);*/
-	}
+	//inline void WriteToBinaryImpl(std::ostream& os, const bms::Note& v) {
+	//	if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::Note))) {
+	//		throw std::ios_base::failure(std::string{"writing type 'bms::Note' failed"});
+	//	}
+	//}
+	//inline void ReadFromBinaryImpl(std::istream& is, bms::Note& v) {
+	//	if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::Note))) {
+	//		throw std::ios_base::failure(std::string{"reading type 'bms::Note' failed"});
+	//	}
+	//}
 
-	inline void WriteToBinaryImpl(std::ostream& os, const bms::Note& v) {
-		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::Note))) {
-			throw std::ios_base::failure(std::string{"writing type 'bms::Note' failed"});
-		}
-	}
-	inline void ReadFromBinaryImpl(std::istream& is, bms::Note& v) {
-		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::Note))) {
-			throw std::ios_base::failure(std::string{"reading type 'bms::Note' failed"});
-		}
-	}
-
-	inline void WriteToBinaryImpl(std::ostream& os, const bms::PlayerNote& v) {
-		if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::PlayerNote))) {
-			throw std::ios_base::failure(std::string{"writing type 'bms::PlayerNote' failed"});
-		}
-	}
-	inline void ReadFromBinaryImpl(std::istream& is, bms::PlayerNote& v) {
-		if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::PlayerNote))) {
-			throw std::ios_base::failure(std::string{"reading type 'bms::PlayerNote' failed"});
-		}
-	}
+	//inline void WriteToBinaryImpl(std::ostream& os, const bms::PlayerNote& v) {
+	//	if (!os.write(reinterpret_cast<const char*>(&v), sizeof(bms::PlayerNote))) {
+	//		throw std::ios_base::failure(std::string{"writing type 'bms::PlayerNote' failed"});
+	//	}
+	//}
+	//inline void ReadFromBinaryImpl(std::istream& is, bms::PlayerNote& v) {
+	//	if (!is.read(reinterpret_cast<char*>(&v), sizeof(bms::PlayerNote))) {
+	//		throw std::ios_base::failure(std::string{"reading type 'bms::PlayerNote' failed"});
+	//	}
+	//}
 }

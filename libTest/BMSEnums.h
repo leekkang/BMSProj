@@ -38,6 +38,14 @@ namespace bms {
 		LANDMINE_END = 513,			// note channel that decrease gauge if user touch. end point. Notation in file = 36 * 14 + 9
 	};
 
+	/// <summary> specify key type of one bms file </summary>
+	enum class KeyType : uint8_t {
+		SINGLE_5,
+		SINGLE_7,
+		DOUBLE_5,
+		DOUBLE_7
+	};
+
 	/// <summary> specify note type </summary>
 	enum class NoteType : uint8_t {
 		NORMAL,

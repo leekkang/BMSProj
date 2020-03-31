@@ -221,9 +221,7 @@ namespace Utility {
 		}
 
 		constexpr Fraction() : mNumerator(0), mDenominator(1) {}
-		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {
-			//std::cout << "copy constructor" << std::endl;
-		}
+		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
 		constexpr Fraction(const Fraction& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "copy constructor" << std::endl;
 		}
@@ -265,23 +263,25 @@ namespace Utility {
 		constexpr bool operator!=(const Fraction& rhs) const {
 			return !(*this == rhs);
 		}
-		constexpr bool operator<(const int val) {
+		constexpr bool operator<(const int val) const {
 			return GetValue() < val;
 		}
-		constexpr bool operator>(const int val) {
+		constexpr bool operator>(const int val) const {
 			return GetValue() > val;
 		}
-		constexpr bool operator<=(const int val) {
+		constexpr bool operator<=(const int val) const {
 			return GetValue() <= val;
 		}
-		constexpr bool operator>=(const int val) {
+		constexpr bool operator>=(const int val) const {
 			return GetValue() >= val;
 		}
-		constexpr bool operator<(const Fraction& rhs) {
-			return (*this - rhs) < 0;
+		constexpr bool operator<(const Fraction& rhs) const {
+			return GetValue() < rhs.GetValue();
+			//return (*this - rhs) < 0;
 		}
-		constexpr bool operator>(const Fraction& rhs) {
-			return (*this - rhs) > 0;
+		constexpr bool operator>(const Fraction& rhs) const {
+			return GetValue() > rhs.GetValue();
+			//return (*this - rhs) > 0;
 		}
 		constexpr Fraction& operator+=(const Fraction& rhs) {
 			if (rhs.mNumerator != 0) {

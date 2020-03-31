@@ -164,7 +164,7 @@ namespace bms {
 
 			LOG("FMOD sound create time(ms) : " << clock() - s)
 
-			mDuration = std::chrono::microseconds(data.mTotalTime + 500000ll);
+			mDuration = std::chrono::microseconds(data.mInfo->mTotalTime + 500000ll);
 			// music start
 			mStop = false;
 			// reference : https://stackoverflow.com/questions/35897617/c-loop-with-fixed-delta-time-on-a-background-thread

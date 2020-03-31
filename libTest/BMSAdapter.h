@@ -28,8 +28,6 @@ namespace bms {
 		/// <returns> return true if a <see cref="BMS::BMSData"/> object is correctly build </returns>
 		bool Make(const std::string& path);
 
-		bool MakeFolder(const std::string& folderPath);
-
 		void Play(int index);
 
 		inline bool IsPlayingMusic() {
@@ -45,11 +43,13 @@ namespace bms {
 		// ----- get, set function -----
 	private:
 
-		///<summary> The class that manages the preview before playing the music. </summary>
+		///<summary> The class that stores all data of a single <see cref="bms::BMSInfoData"/> object </summary>
+		BMSData mCurData;
+		///<summary> The class that manages the preview before playing the music </summary>
 		PlayThread mThread;
 
-		///<summary> List that stores the completed bms data instance </summary>
-		std::vector<BMSData> mListData;
+		///<summary> List that stores the completed bms info data instance </summary>
+		std::vector<BMSInfoData> mListData;
 		///<summary> Folder path where all bms related files are stored </summary>
 		std::vector<std::string> mListFolderPath;
 	};

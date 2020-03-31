@@ -16,13 +16,7 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSDecryptor(std::string path) : mBmsData(path) {
-			std::cout << "BMSDecryptor constructor for preview" << std::endl;
-		};
-		BMSDecryptor(std::string path, std::vector<std::string>& data) : mBmsData(path) {
-			std::cout << "BMSDecryptor constructor for play" << std::endl; 
-			mListRaw = data;
-		};
+		BMSDecryptor(BMSData& data) : mData(data) {};
 		~BMSDecryptor() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSDecryptor)
 		BMSDecryptor(BMSDecryptor&& others) noexcept = default;
@@ -63,12 +57,6 @@ namespace bms {
 		// ----- get, set function -----
 
 		/// <summary>
-		/// return <see cref="BMSData"/> object. It should be called after the build is finished.
-		/// </summary>
-		inline BMSData&& GetBmsData() { return std::move(mBmsData); }
-		//inline BMSData CopyBmsData() { return mBmsData; }
-
-		/// <summary>
 		/// check what type <paramref name="str"/> is.
 		/// check order : UTF-8(include english only) -> EUC_KR(expended to CP949) -> Shift-jis(default)
 		/// </summary>
@@ -106,7 +94,7 @@ namespace bms {
 				return BeatFraction();
 			} else {
 				return measure == 0 ? frac * GetBeatInMeasure(measure) :
-									  frac * GetBeatInMeasure(measure) + mBmsData.mListCumulativeBeat[measure - 1];
+									  frac * GetBeatInMeasure(measure) + mData.mListCumulativeBeat[measure - 1];
 			}
 		}
 		/// <summary>
@@ -115,10 +103,10 @@ namespace bms {
 		/// </summary>
 		inline long long GetTimeUsingBeat(const BeatFraction& beat) {
 			BeatFraction subtract;
-			size_t length = mBmsData.mListTimeSeg.size();
+			size_t length = mData.mListTimeSeg.size();
 			size_t index = length - 1;
 			for (; index > 0; --index) {
-				const TimeSegment& t = mBmsData.mListTimeSeg[index];
+				const TimeSegment& t = mData.mListTimeSeg[index];
 				subtract = beat - t.mCurBeat;
 				// zero bpm means stop signal. skip it.
 				if (subtract >= 0) {
@@ -127,10 +115,10 @@ namespace bms {
 			}
 
 			// previous saved time + current segment time. if index equals to length, add reversed sign
-			const TimeSegment& prev = mBmsData.mListTimeSeg[index];
+			const TimeSegment& prev = mData.mListTimeSeg[index];
 			//TRACE("GetTimeUsingBeat beat area check : [" << (beat > prev.mCurBeat ? 1 : 0) << ", " << 
-			//	  (index + 1 < length) ? (beat < mBmsData.mListTimeSeg[index + 1].mCurBeat ? 1 : 0) : 1 << "], prevbpm : " << prev.mCurBpm)
-			//bool bTest = (index + 1 < length) ? (mBmsData.mListTimeSeg[index + 1].mCurBeat - beat > 0) : true;
+			//	  (index + 1 < length) ? (beat < mData.mListTimeSeg[index + 1].mCurBeat ? 1 : 0) : 1 << "], prevbpm : " << prev.mCurBpm)
+			//bool bTest = (index + 1 < length) ? (mData.mListTimeSeg[index + 1].mCurBeat - beat > 0) : true;
 			//std::cout << "GetTimeUsingBeat beat area check : [" << (beat - prev.mCurBeat >= 0) << ", " << bTest << "], prevbpm : " << prev.mCurBpm << std::endl;
 			return index == 0 ? beat.GetTime(prev.mCurBpm) :
 								prev.mCurTime + subtract.GetTime(prev.mCurBpm);
@@ -140,14 +128,14 @@ namespace bms {
 		/// Function that returns a total play time
 		/// </summary>
 		inline long long GetTotalPlayTime() {
-			const TimeSegment& seg = mBmsData.mListTimeSeg[mBmsData.mListTimeSeg.size() - 1];
-			BeatFraction subtract = mBmsData.mListCumulativeBeat[mEndMeasure] - seg.mCurBeat;
+			const TimeSegment& seg = mData.mListTimeSeg[mData.mListTimeSeg.size() - 1];
+			BeatFraction subtract = mData.mListCumulativeBeat[mEndMeasure] - seg.mCurBeat;
 
 			return seg.mCurTime + subtract.GetTime(seg.mCurBpm);
 		}
 
 	private:
-		EncodingType mType;
+		BMSData& mData;
 
 		/// <summary> The number of total measure of current bms data </summary>
 		int mEndMeasure;
@@ -156,8 +144,6 @@ namespace bms {
 		/// this value direct wav file key in <see cref="BMSData::mDicWav"/>. 
 		/// </summary>
 		int mEndNoteVal;
-
-		BMSData mBmsData;
 
 		///<summary> a list of raw file data not yet parsed </summary>
 		std::vector<std::string> mListRaw;

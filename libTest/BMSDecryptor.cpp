@@ -17,8 +17,10 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 	BMSInfoData data(path);
 	// declare instant variable for parse
 	bool isHeader = true;
-	uint16_t wavCnt = 0, rndCnt = 0, measureCnt = 0;
+	uint16_t wavCnt = 0, measureCnt = 0;
+	uint8_t rndCnt = 0;
 	char prevMeasure[4] = {0,};
+	bool b5key = true, bSingle = true;
 
 	std::string line;
 	line.reserve(1024);
@@ -28,42 +30,52 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 		if (*pLine != '#') {
 			continue;
 		}
-
+		++pLine;
 		// separate header line and body line
-		if (isHeader && *(pLine + 1) == '0') {	// '0' means that measure 000 is start
+		if (isHeader && *pLine == '0') {	// '0' means that measure 000 is start
 			isHeader = false;
 		}
 
-		size_t length = line.size();
+		size_t length = line.size() - 1;
 		if (isHeader) {
-			if (Utility::StartsWith(pLine, "#WAV") && length > 7) {
+			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
 				++wavCnt;
-			} else if (Utility::StartsWith(pLine, "#BPM") && *(pLine + 4) == ' ') {
-				data.mBpm = mBmsData.mMinBpm = mBmsData.mMaxBpm = Utility::parseInt(pLine + 5);
-			} else if (Utility::StartsWith(pLine, "#PLAYER") && length > 8) {
-				data.mPlayer = Utility::parseInt(pLine + 8);
-			} else if (Utility::StartsWith(pLine, "#PLAYLEVEL") && length > 11) {
-				data.mLevel = Utility::parseInt(pLine + 11);
-			} else if (Utility::StartsWith(pLine, "#DIFFICULTY") && length > 12) {
-				data.mDifficulty = Utility::parseInt(pLine + 12);
-			} else if (Utility::StartsWith(pLine, "#GENRE") && length > 7) {
-				data.mGenre = std::string(pLine + 7);
-			} else if (Utility::StartsWith(pLine, "#TITLE") && length > 7) {
-				data.mTitle = std::string(pLine + 7);
-			} else if (Utility::StartsWith(pLine, "#ARTIST") && length > 8) {
-				data.mArtist = std::string(pLine + 8);
+			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) == ' ') {
+				data.mBpm = data.mMinBpm = data.mMaxBpm = Utility::parseInt(pLine + 4);
+			} else if (Utility::StartsWith(pLine, "PLAYER") && length > 7) {
+				data.mPlayer = Utility::parseInt(pLine + 7);
+			} else if (Utility::StartsWith(pLine, "PLAYLEVEL") && length > 10) {
+				data.mLevel = Utility::parseInt(pLine + 10);
+			} else if (Utility::StartsWith(pLine, "DIFFICULTY") && length > 11) {
+				data.mDifficulty = Utility::parseInt(pLine + 11);
+			} else if (Utility::StartsWith(pLine, "GENRE") && length > 6) {
+				data.mGenre = std::string(pLine + 6);
+			} else if (Utility::StartsWith(pLine, "TITLE") && length > 6) {
+				data.mTitle = std::string(pLine + 6);
+			} else if (Utility::StartsWith(pLine, "ARTIST") && length > 7) {
+				data.mArtist = std::string(pLine + 7);
 			}
 		} else {
-			if (length > 8 && *(pLine + 6) == ':') {
-				if (!Utility::StartsWith(prevMeasure, pLine + 1)) {
-					uint16_t measure = Utility::parseInt(pLine + 1, 3);
+			if (length > 7 && *(pLine + 5) == ':') {
+				// check measure number
+				if (!Utility::StartsWith(prevMeasure, pLine)) {
+					uint16_t measure = Utility::parseInt(pLine, 3);
 					if (measureCnt < measure) {
 						measureCnt = measure;
 					}
 
-					memcpy(prevMeasure, pLine + 1, 3);
+					memcpy(prevMeasure, pLine, 3);
 				}
-			} else if (Utility::StartsWith(pLine, "#RANDOM")) {
+
+				// check key type
+				if (bSingle && *(pLine + 3) == '2') {
+					bSingle = false;
+				}
+				if (b5key && (*(pLine + 4) == '8' || *(pLine + 4) == '9') &&
+							  *(pLine + 3) == (bSingle ? '1' : '2')) {
+					b5key = false;
+				}
+			} else if (Utility::StartsWith(pLine, "RANDOM")) {
 				++rndCnt;
 			}
 		}
@@ -72,6 +84,8 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 	data.mWavCount = wavCnt;
 	data.mRndCount = rndCnt;
 	data.mMeasureCount = measureCnt;
+	data.mKeyType = bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
+							  (b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
 
 	EncodingType type = in.GetEncodeType();
 	if (type == EncodingType::UNKNOWN) {
@@ -120,7 +134,7 @@ bool BMSDecryptor::Build(bool bPreview) {
 	BeatFraction frac;
 	for (int i = 0; i <= mEndMeasure; ++i) {
 		frac += GetBeatInMeasure(i);
-		mBmsData.mListCumulativeBeat.emplace_back(frac.mNumerator, frac.mDenominator);
+		mData.mListCumulativeBeat.emplace_back(frac.mNumerator, frac.mDenominator);
 	}
 	LOG("cumulative beat make time(ms) : " << clock() - s)
 	
@@ -143,17 +157,17 @@ bool BMSDecryptor::Build(bool bPreview) {
 	MakeNoteList();
 	LOG("note list make time(ms) : " << clock() - s)
 
-	mBmsData.mTotalTime = GetTotalPlayTime();
+	mData.mInfo->mTotalTime = GetTotalPlayTime();
 
-	//LOG("total player note num : " << mBmsData.mListPlayerNote.size())
-	LOG("total player normal note num : " << mBmsData.mNoteCount)
-	LOG("total player long note num : " << mBmsData.mLongCount)
+	//LOG("total player note num : " << mData.mListPlayerNote.size())
+	LOG("total player normal note num : " << mData.mNoteCount)
+	LOG("total player long note num : " << mData.mLongCount)
 	/*LOG("total player invisible note num : " << [&](int n) ->int {
-		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
+		std::vector<PlayerNote>& v = mData.mListPlayerNote;
 		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::INVISIBLE) ++n;
 		return n; }(0))
 	LOG("total player landmine note num : " << [&](int n) ->int {
-		std::vector<PlayerNote>& v = mBmsData.mListPlayerNote;
+		std::vector<PlayerNote>& v = mData.mListPlayerNote;
 		for (int i = 0; i < v.size(); ++i) if (v[i].mType == NoteType::LANDMINE) ++n;
 		return n; }(0))*/
 	return true;
@@ -163,56 +177,56 @@ bool BMSDecryptor::Build(bool bPreview) {
 /// parse <paramref name="line"/> for fill header data and store parsed line in appropriate variable
 /// </summary>
 void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
-	if (line.rfind("#PLAYER", 0) == 0 && line.size() > 8) {
-		mBmsData.mPlayer = std::stoi(line.substr(8));
-	} else if (line.rfind("#GENRE", 0) == 0 && line.size() > 7) {
-		mBmsData.mGenre = line.substr(7);
-	} else if (line.rfind("#TITLE", 0) == 0 && line.size() > 7) {
-		mBmsData.mTitle = line.substr(7);
-	} else if (line.rfind("#ARTIST", 0) == 0 && line.size() > 8) {
-		mBmsData.mArtist = line.substr(8);
-	} else if (line.rfind("#BPM", 0) == 0) {
-		if (line[4] == ' ' && line.size() > 5) {
-			mBmsData.mBpm = mBmsData.mMinBpm = mBmsData.mMaxBpm = std::stoi(line.substr(5));
-		} else if (line.size() > 7) {	// #BPMXX
-			int key = std::stoi(line.substr(4, 2), nullptr, 36);
-			mDicBpm[key] = std::stof(line.substr(7));
-		}
-	} else if (line.rfind("#PLAYLEVEL", 0) == 0 && line.size() > 11) {
-		mBmsData.mLevel = std::stoi(line.substr(11));
-	} else if (line.rfind("#RANK", 0) == 0 && line.size() > 6) {
-		mBmsData.mRank = std::stoi(line.substr(6));
-	} else if (line.rfind("#TOTAL", 0) == 0 && line.size() > 7) {
-		mBmsData.mTotal = std::stoi(line.substr(7));
-	} else if (line.rfind("#STAGEFILE", 0) == 0 && line.size() > 11) {
-		mBmsData.mStageFile = line.substr(11);
-	} else if (line.rfind("#BANNER", 0) == 0 && line.size() > 8) {
-		mBmsData.mBannerFile = line.substr(8);
-	} else if (line.rfind("#DIFFICULTY", 0) == 0 && line.size() > 12) {
-		mBmsData.mDifficulty = std::stoi(line.substr(12));
-	} else if ((line.rfind("#WAV", 0) == 0 || line.rfind("#BMP", 0) == 0) && line.size() > 7) {
-		int key = std::stoi(line.substr(4, 2), nullptr, 36);
-		line[1] == 'W' ? mBmsData.mDicWav[key] = line.substr(7) : 
-						 mBmsData.mDicBmp[key] = line.substr(7);
-		//TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
-	} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
-		int key = std::stoi(line.substr(5, 2), nullptr, 36);
-		mDicStop[key] = std::stoi(line.substr(8));
-	} else if (line.rfind("#LNTYPE", 0) == 0 && line.size() > 8) {
-		LongnoteType val = static_cast<LongnoteType>(std::stoi(line.substr(8)));
-		if (val == LongnoteType::RDM_TYPE_1 || val == LongnoteType::MGQ_TYPE) {
-			mBmsData.mLongNoteType = val;
-		}
-	} else if (line.rfind("#LNOBJ", 0) == 0 && line.size() > 7) {
-		if (mEndNoteVal != 0) {
-			LOG("LNOBJ value is more than one value. : " << line);
-		}
-		mEndNoteVal = std::stoi(line.substr(7), nullptr, 36);
-		mBmsData.mLongNoteType = LongnoteType::RDM_TYPE_2;
-	} else {
-		TRACE("This line is not in the correct format : " << line);
-			return;
-	}
+	//if (line.rfind("#PLAYER", 0) == 0 && line.size() > 8) {
+	//	mData.mPlayer = std::stoi(line.substr(8));
+	//} else if (line.rfind("#GENRE", 0) == 0 && line.size() > 7) {
+	//	mData.mGenre = line.substr(7);
+	//} else if (line.rfind("#TITLE", 0) == 0 && line.size() > 7) {
+	//	mData.mTitle = line.substr(7);
+	//} else if (line.rfind("#ARTIST", 0) == 0 && line.size() > 8) {
+	//	mData.mArtist = line.substr(8);
+	//} else if (line.rfind("#BPM", 0) == 0) {
+	//	if (line[4] == ' ' && line.size() > 5) {
+	//		mData.mBpm = mData.mMinBpm = mData.mMaxBpm = std::stoi(line.substr(5));
+	//	} else if (line.size() > 7) {	// #BPMXX
+	//		int key = std::stoi(line.substr(4, 2), nullptr, 36);
+	//		mDicBpm[key] = std::stof(line.substr(7));
+	//	}
+	//} else if (line.rfind("#PLAYLEVEL", 0) == 0 && line.size() > 11) {
+	//	mData.mLevel = std::stoi(line.substr(11));
+	//} else if (line.rfind("#RANK", 0) == 0 && line.size() > 6) {
+	//	mData.mRank = std::stoi(line.substr(6));
+	//} else if (line.rfind("#TOTAL", 0) == 0 && line.size() > 7) {
+	//	mData.mTotal = std::stoi(line.substr(7));
+	//} else if (line.rfind("#STAGEFILE", 0) == 0 && line.size() > 11) {
+	//	mData.mStageFile = line.substr(11);
+	//} else if (line.rfind("#BANNER", 0) == 0 && line.size() > 8) {
+	//	mData.mBannerFile = line.substr(8);
+	//} else if (line.rfind("#DIFFICULTY", 0) == 0 && line.size() > 12) {
+	//	mData.mDifficulty = std::stoi(line.substr(12));
+	//} else if ((line.rfind("#WAV", 0) == 0 || line.rfind("#BMP", 0) == 0) && line.size() > 7) {
+	//	int key = std::stoi(line.substr(4, 2), nullptr, 36);
+	//	line[1] == 'W' ? mData.mDicWav[key] = line.substr(7) : 
+	//					 mData.mDicBmp[key] = line.substr(7);
+	//	//TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
+	//} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
+	//	int key = std::stoi(line.substr(5, 2), nullptr, 36);
+	//	mDicStop[key] = std::stoi(line.substr(8));
+	//} else if (line.rfind("#LNTYPE", 0) == 0 && line.size() > 8) {
+	//	LongnoteType val = static_cast<LongnoteType>(std::stoi(line.substr(8)));
+	//	if (val == LongnoteType::RDM_TYPE_1 || val == LongnoteType::MGQ_TYPE) {
+	//		mData.mLongNoteType = val;
+	//	}
+	//} else if (line.rfind("#LNOBJ", 0) == 0 && line.size() > 7) {
+	//	if (mEndNoteVal != 0) {
+	//		LOG("LNOBJ value is more than one value. : " << line);
+	//	}
+	//	mEndNoteVal = std::stoi(line.substr(7), nullptr, 36);
+	//	mData.mLongNoteType = LongnoteType::RDM_TYPE_2;
+	//} else {
+	//	TRACE("This line is not in the correct format : " << line);
+	//		return;
+	//}
 	//TRACE("This line is correct format : " << line)
 }
 
@@ -265,7 +279,7 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 
 		if (channel == Channel::BGM) {
 			// add object to vector if this object has own sound file
-			if (mBmsData.mDicWav.count(val) != 0) {
+			if (mData.mDicWav.count(val) != 0) {
 				objs.emplace_back(val, measure, channel, i, item);
 			} else {
 				LOG("this object has no sound fild. measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
@@ -298,11 +312,11 @@ void BMSDecryptor::ParseBody(std::string&& line) noexcept {
 /// </summary>
 void BMSDecryptor::MakeTimeSegment() {
 	long long curTime = 0;
-	double curBpm = mBmsData.mBpm;
+	double curBpm = mData.mInfo->mBpm;
 	BeatFraction prevBeat;
 
 	// push initial time segment
-	mBmsData.mListTimeSeg.emplace_back(0, curBpm, 0, 1);
+	mData.mListTimeSeg.emplace_back(0, curBpm, 0, 1);
 	TRACE("TimeSegment measure : 0, beat : 0, second : 0, bpm : " + std::to_string(curBpm));
 
 	int count = static_cast<int>(mListRawTiming.size());
@@ -320,20 +334,20 @@ void BMSDecryptor::MakeTimeSegment() {
 		if (obj.mChannel == Channel::STOP_BY_KEY && mDicStop.count(obj.mValue) != 0) {
 			// STOP value is the time value of 1/192 of a whole note in 4/4 meter be the unit 1
 			// 48 == 1 beat
-			mBmsData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
 			TRACE("TimeSegment measure : " << curMeasure << ", beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", delta : " << delta << ", bpm : " << 0);
 			// value / 48 = beats to stop, time = beat * (60/bpm), 
 			// --> stop time = (value * 5) / (bpm * 4)
 			TRACE("measure : " << curMeasure << ", obj * value * 5000000ll = " << mDicStop[obj.mValue] * 5000000ll << ", curbpm * 4 = " << curBpm * 4 << ", result = " << (mDicStop[obj.mValue] * 5000000ll) / (curBpm * 4));
 			delta = static_cast<long long>(std::round((mDicStop[obj.mValue] * 5000000ll) / (curBpm * 4)));
 			curTime += delta;
-			mBmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
 		} else if (obj.mChannel == Channel::CHANGE_BPM ||
 				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
 			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mDicBpm[obj.mValue];
-			mBmsData.mMinBpm = std::min(mBmsData.mMinBpm, curBpm);
-			mBmsData.mMaxBpm = std::max(mBmsData.mMaxBpm, curBpm);
-			mBmsData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mInfo->mMinBpm = std::min(mData.mInfo->mMinBpm, curBpm);
+			mData.mInfo->mMaxBpm = std::max(mData.mInfo->mMaxBpm, curBpm);
+			mData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
 		}
 
 		prevBeat = curBeatSum;
@@ -347,17 +361,17 @@ void BMSDecryptor::MakeTimeSegment() {
 void BMSDecryptor::MakeNoteList() {
 	clock_t s = clock();
 	// true if long note type is RDM type 2
-	bool isRDM2 = mBmsData.mLongNoteType == LongnoteType::RDM_TYPE_2;
+	bool isRDM2 = mData.mLongNoteType == LongnoteType::RDM_TYPE_2;
 	// only work of RDM type 2, true if LNOBJ value is one of the indexes of WAV
-	bool isExistEndWav = mEndNoteVal != 0 && mBmsData.mDicWav.count(mEndNoteVal) != 0;
+	bool isExistEndWav = mEndNoteVal != 0 && mData.mDicWav.count(mEndNoteVal) != 0;
 	// save each column's last note index. This value is used to determine if this object is a long note.
 	int lastIndex[9] = {0};
 
 	auto addLong = [&](int column, const BeatFraction& bf) {
-		mBmsData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
-		mBmsData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
+		mData.mListPlayerNote[lastIndex[column]].mType = NoteType::LONG;
+		mData.mListPlayerNote[lastIndex[column]].mEndBeat = bf;
 		lastIndex[column] = 0;
-		mBmsData.mNoteCount--; mBmsData.mLongCount++;
+		mData.mNoteCount--; mData.mLongCount++;
 	};
 	for (int i = 0; i <= mEndMeasure; ++i) {
 		// check if this measure has information
@@ -375,7 +389,7 @@ void BMSDecryptor::MakeNoteList() {
 			BeatFraction bf = GetBeats(i, obj.mFraction);
 			// BG Note list
 			if (obj.mChannel < Channel::KEY_1P_1) {
-				std::vector<Note>& container = obj.mChannel == Channel::BGM ? mBmsData.mListBgm : mBmsData.mListBga;
+				std::vector<Note>& container = obj.mChannel == Channel::BGM ? mData.mListBgm : mData.mListBga;
 				container.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf);
 				continue;
 			}
@@ -392,7 +406,7 @@ void BMSDecryptor::MakeNoteList() {
 					continue;
 				} else if (bInvisibleNote) {
 					// remove invisible note with no sound data
-					if (mBmsData.mDicWav.count(obj.mValue) == 0) {
+					if (mData.mDicWav.count(obj.mValue) == 0) {
 						continue;
 					}
 				}
@@ -402,13 +416,13 @@ void BMSDecryptor::MakeNoteList() {
 					if (obj.mValue == mEndNoteVal) {
 						// convert note object to bgm object if object value is one of the indexes of WAV (always play sound)
 						if (isExistEndWav) {
-							mBmsData.mListBgm.emplace_back(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf);
+							mData.mListBgm.emplace_back(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf);
 						}
 						addLong(column, bf);
 						continue;
 					}
 
-					lastIndex[column] = static_cast<int>(mBmsData.mListPlayerNote.size());
+					lastIndex[column] = static_cast<int>(mData.mListPlayerNote.size());
 				}
 			} else {
 				// convert long note channel to normal note channel
@@ -419,11 +433,11 @@ void BMSDecryptor::MakeNoteList() {
 						continue;
 					}
 
-					lastIndex[column] = static_cast<int>(mBmsData.mListPlayerNote.size());
+					lastIndex[column] = static_cast<int>(mData.mListPlayerNote.size());
 					intCh -= 144;	// 36 * 4
 				} else if (bInvisibleNote) {
 					// remove invisible note with no sound data
-					if (mBmsData.mDicWav.count(obj.mValue) == 0) {
+					if (mData.mDicWav.count(obj.mValue) == 0) {
 						continue;
 					}
 				}
@@ -438,13 +452,13 @@ void BMSDecryptor::MakeNoteList() {
 				type = NoteType::INVISIBLE;
 				intCh -= 72;	// 36 * 2
 			} else {
-				mBmsData.mNoteCount += 1;
+				mData.mNoteCount += 1;
 			}
 
 			// make note based on the long note information summarized in the above
 			PlayerNote pn(obj.mValue, static_cast<Channel>(intCh), GetTimeUsingBeat(bf), bf, type);
 			TRACE("note measure : " << i << ", channel : " << intCh << ", beat : " << bf.GetValue() << ", time : " << pn.mTime << ", value : " << pn.mKey);
-			mBmsData.mListPlayerNote.emplace_back(std::move(pn));
+			mData.mListPlayerNote.emplace_back(std::move(pn));
 		}
 		//LOG("note list per measure make time(ms) : " << clock() - s);
 	}

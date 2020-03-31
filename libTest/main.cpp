@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include <Windows.h>
+#include <unordered_map>
 
 std::vector<std::wstring> locales;
 BOOL CALLBACK MyFuncLocaleEx(LPWSTR pStr, DWORD dwFlags, LPARAM lparam) {
@@ -32,16 +33,14 @@ void ShowListFile(std::string path) {
 }
 
 int main() {
-	std::vector<int> t{1, 2, 3, 4, 5};
-	t.resize(10, 0);
-	t.reserve(20);
-	t.resize(3, 0);
-	t.reserve(10);
-	std::string str("prefix10ag");
-	std::string prefix("prefix");
-	std::cout << Utility::parseInt(str.data() + 6, 2, 36) << std::endl;
-	std::cout << Utility::StartsWith(str.data(), prefix.data()) << std::endl;
-
+	std::unordered_map<int, int> map;
+	map.reserve(100);
+	map[1] = 1;
+	map[2] = 1;
+	map[3] = 1;
+	map[4] = 1;
+	map.clear();
+	map.reserve(1024);
 	bms::ListPool<int> p(2);
 	p.push(1);
 	p.push(3);
@@ -62,23 +61,45 @@ int main() {
 	//	}
 	//}
 
+	std::wstring rootPath = L"./StreamingAssets/";
 	std::ios::sync_with_stdio(false);
-	std::vector<std::string> paths = {u8"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
-									  u8"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
-									  u8"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
-									  u8"./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
+	std::vector<const wchar_t*> paths = {L"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
+										 L"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
+										 L"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
+										 L"./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
 
 	};
-	
+	/*std::string line;
+	line.reserve(1024);
+	clock_t s = clock();
+	for (int i = 0; i < 100; ++i) {
+		bms::BMSifstream in (paths[0]);
+		while (in.GetLine(line));
+		std::cout << "ifstream time(ms) : " << std::to_string(clock() - s) << '\n';
+	}
+	std::string line2;
+	return 0;*/
+
+	bms::BMSData data;
+	bms::BMSDecryptor decryp(data);
+	std::vector<bms::BMSInfoData> infos(4);
+	clock_t s = clock();
+	for (int i = 0; i < 100; ++i) {
+		infos[0] = decryp.BuildInfoData(paths[0]);
+		std::cout << "info time(ms) : " << std::to_string(clock() - s) << '\n';
+	}
+	std::cout << std::endl;
+	return 0;
+
 	int pathIndex = 0;
 	int max = static_cast<int>(paths.size() - 1);
-	std::string folderPath = Utility::GetDirectory(paths[pathIndex]);
+	//std::string folderPath = Utility::GetDirectory(paths[pathIndex]);
 	//std::string path = "./test.bms";
 	bms::BMSAdapter adapter;
-	clock_t s = clock();
-	for (std::string path : paths) {
-		adapter.Make(path);
-	}
+	s = clock();
+	//for (std::string path : paths) {
+	//	adapter.Make(path);
+	//}
 	std::cout << "make time(ms) : " << std::to_string(clock() - s) << std::endl;
 
 	//std::cout << " bms file list : " << adapter.mListData[0].mTitle << std::endl;

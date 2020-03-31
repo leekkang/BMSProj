@@ -17,7 +17,7 @@ bool BMSAdapter::Make(const std::string& path) {
 	}
 	LOG("read text file time(ms) : " << clock() - s)
 
-	BMSDecryptor decryptor(path, lines);
+	BMSDecryptor decryptor(mCurData);
 
 	s = clock();
 	if (!decryptor.Build(true)) {
@@ -26,9 +26,13 @@ bool BMSAdapter::Make(const std::string& path) {
 	}
 	LOG("bms data build time(ms) : " << clock() - s);
 
-	//mListData.push_back(decryptor.CopyBmsData());
-	mListData.emplace_back(decryptor.GetBmsData());
+	//mListData.emplace_back(decryptor.GetBmsData());
 	mListFolderPath.emplace_back(Utility::GetDirectory(path) + '/');
+
+	std::ofstream os("./test.bin", std::ios::binary | std::ios::app);
+	os << mListData[mListData.size() - 1];
+	//bms::WriteToBinary(os, paths);
+	os.close();
 
 	return true;
 }
@@ -43,6 +47,6 @@ void BMSAdapter::Play(int index) {
 	}
 
 	clock_t s = clock();
-	mThread.Play(mListFolderPath[index], mListData[index]);
+	mThread.Play(mListFolderPath[index], mCurData);
 	LOG("mThread.Play time(ms) : " << clock() - s);
 }
