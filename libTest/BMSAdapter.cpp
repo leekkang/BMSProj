@@ -29,11 +29,6 @@ bool BMSAdapter::Make(const std::string& path) {
 	//mListData.emplace_back(decryptor.GetBmsData());
 	mListFolderPath.emplace_back(Utility::GetDirectory(path) + '/');
 
-	std::ofstream os("./test.bin", std::ios::binary | std::ios::app);
-	os << mListData[mListData.size() - 1];
-	//bms::WriteToBinary(os, paths);
-	os.close();
-
 	return true;
 }
 

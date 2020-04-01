@@ -30,7 +30,7 @@ namespace bms {
 	template<class T>
 	inline void WriteToBinaryImpl(std::ostream& os, const typename std::vector<T>& v) {
 		// store count of vector element
-		WriteToBinary<uint32_t>(os, v.size());
+		WriteToBinary<uint32_t>(os, static_cast<uint32_t>(v.size()));
 		for (auto& e : v) {
 			WriteToBinary(os, e);
 		}
@@ -38,7 +38,7 @@ namespace bms {
 	template<class T>
 	inline void WriteToBinaryImpl(std::ostream& os, const typename std::basic_string<T>& v) {
 		// store count of char
-		WriteToBinary<uint32_t>(os, v.size());
+		WriteToBinary<uint32_t>(os, static_cast<uint32_t>(v.size()));
 		for (auto& e : v) {
 			WriteToBinary(os, e);
 		}
@@ -51,7 +51,7 @@ namespace bms {
 	template<class T1, class T2>
 	inline void WriteToBinaryImpl(std::ostream& os, const typename std::unordered_map<T1, T2>& v) {
 		// store count of unordered_map element
-		WriteToBinary<uint32_t>(os, v.size());
+		WriteToBinary<uint32_t>(os, static_cast<uint32_t>(v.size()));
 		for (auto& e : v) {
 			WriteToBinary(os, e);
 		}

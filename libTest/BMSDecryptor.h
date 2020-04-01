@@ -3,9 +3,7 @@
 #include "BMSData.h"
 #include "BMSifstream.h"
 
-#include <unordered_map>
 #include <algorithm>		// std::min, max, sort
-#include <stack>
 
 namespace bms {
 	/// <summary>
@@ -30,6 +28,13 @@ namespace bms {
 		/// </summary>
 		/// <returns> return <see cref="bms::BMSPreviewData"/> object if all line is correctly saved </returns>
 		BMSInfoData BuildInfoData(const wchar_t* path);
+
+		/// <summary>
+		/// read file and build for fill data in header. no file dictionary is created.
+		/// Read only information that is displayed on the UI or is helpful when reading information for previewing.
+		/// </summary>
+		/// <returns> return true if all line is correctly saved </returns>
+		bool BuildInfoData(BMSInfoData* data, const wchar_t* path);
 
 		/// <summary>
 		/// build using line in <paramref name="lines"/> list for fill data in header or body

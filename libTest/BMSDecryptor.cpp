@@ -21,6 +21,7 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 	uint8_t rndCnt = 0;
 	char prevMeasure[4] = {0,};
 	bool b5key = true, bSingle = true;
+	int player = 1;
 
 	std::string line;
 	line.reserve(1024);
@@ -43,7 +44,8 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) == ' ') {
 				data.mBpm = data.mMinBpm = data.mMaxBpm = Utility::parseInt(pLine + 4);
 			} else if (Utility::StartsWith(pLine, "PLAYER") && length > 7) {
-				data.mPlayer = Utility::parseInt(pLine + 7);
+				// single = 1, couple = 2, double = 3
+				player = Utility::parseInt(pLine + 7);
 			} else if (Utility::StartsWith(pLine, "PLAYLEVEL") && length > 10) {
 				data.mLevel = Utility::parseInt(pLine + 10);
 			} else if (Utility::StartsWith(pLine, "DIFFICULTY") && length > 11) {
@@ -84,9 +86,13 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 	data.mWavCount = wavCnt;
 	data.mRndCount = rndCnt;
 	data.mMeasureCount = measureCnt;
-	data.mKeyType = bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
-							  (b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
 
+	// set key type
+	data.mKeyType = player == 2 ? (b5key ? KeyType::COUPLE_5 : KeyType::COUPLE_7) :
+						bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
+								  (b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
+
+	// set encoding type
 	EncodingType type = in.GetEncodeType();
 	if (type == EncodingType::UNKNOWN) {
 		type = GetEncodeType(data.mGenre + data.mTitle + data.mArtist);
@@ -94,6 +100,105 @@ BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
 	data.mFileType = type;
 
 	return data;
+}
+
+/// <summary>
+/// read file and build for fill data in header. no file dictionary is created.
+/// Read only information that is displayed on the UI or is helpful when reading information for previewing.
+/// </summary>
+/// <returns> return true if all line is correctly saved </returns>
+bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
+	BMSifstream in(path);
+	if (!in.IsOpen()) {
+		TRACE("The file does not exist in this path : " + Utility::WideToUTF(path));
+		return false;
+	}
+
+	// declare instant variable for parse
+	bool isHeader = true;
+	uint16_t wavCnt = 0, measureCnt = 0;
+	uint8_t rndCnt = 0;
+	char prevMeasure[4] = {0,};
+	bool b5key = true, bSingle = true;
+	int player = 1;
+
+	std::string line;
+	line.reserve(1024);
+	while (in.GetLine(line, true)) {
+		const char* pLine = line.data();
+		// check incorrect line
+		if (*pLine != '#') {
+			continue;
+		}
+		++pLine;
+		// separate header line and body line
+		if (isHeader && *pLine == '0') {	// '0' means that measure 000 is start
+			isHeader = false;
+		}
+
+		size_t length = line.size() - 1;
+		if (isHeader) {
+			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
+				++wavCnt;
+			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) == ' ') {
+				data->mBpm = data->mMinBpm = data->mMaxBpm = Utility::parseInt(pLine + 4);
+			} else if (Utility::StartsWith(pLine, "PLAYER") && length > 7) {
+				// single = 1, couple = 2, double = 3
+				player = Utility::parseInt(pLine + 7);
+			} else if (Utility::StartsWith(pLine, "PLAYLEVEL") && length > 10) {
+				data->mLevel = Utility::parseInt(pLine + 10);
+			} else if (Utility::StartsWith(pLine, "DIFFICULTY") && length > 11) {
+				data->mDifficulty = Utility::parseInt(pLine + 11);
+			} else if (Utility::StartsWith(pLine, "GENRE") && length > 6) {
+				data->mGenre = std::string(pLine + 6);
+			} else if (Utility::StartsWith(pLine, "TITLE") && length > 6) {
+				data->mTitle = std::string(pLine + 6);
+			} else if (Utility::StartsWith(pLine, "ARTIST") && length > 7) {
+				data->mArtist = std::string(pLine + 7);
+			}
+		} else {
+			if (length > 7 && *(pLine + 5) == ':') {
+				// check measure number
+				if (!Utility::StartsWith(prevMeasure, pLine)) {
+					uint16_t measure = Utility::parseInt(pLine, 3);
+					if (measureCnt < measure) {
+						measureCnt = measure;
+					}
+
+					memcpy(prevMeasure, pLine, 3);
+				}
+
+				// check key type
+				if (bSingle && *(pLine + 3) == '2') {
+					bSingle = false;
+				}
+				if (b5key && (*(pLine + 4) == '8' || *(pLine + 4) == '9') &&
+					*(pLine + 3) == (bSingle ? '1' : '2')) {
+					b5key = false;
+				}
+			} else if (Utility::StartsWith(pLine, "RANDOM")) {
+				++rndCnt;
+			}
+		}
+	}
+
+	data->mWavCount = wavCnt;
+	data->mRndCount = rndCnt;
+	data->mMeasureCount = measureCnt;
+
+	// set key type
+	data->mKeyType = player == 2 ? (b5key ? KeyType::COUPLE_5 : KeyType::COUPLE_7) :
+		bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
+		(b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
+
+	// set encoding type
+	EncodingType type = in.GetEncodeType();
+	if (type == EncodingType::UNKNOWN) {
+		type = GetEncodeType(data->mGenre + data->mTitle + data->mArtist);
+	}
+	data->mFileType = type;
+
+	return true;
 }
 
 /// <summary>
@@ -106,7 +211,6 @@ bool BMSDecryptor::Build(bool bPreview) {
 		TRACE("Bms file is empty.");
 		return false;
 	}
-	std::stack<uint32_t> randomStack;
 
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.

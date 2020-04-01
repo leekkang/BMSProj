@@ -3,13 +3,9 @@
 
 #include <conio.h>
 #include <thread>
-#include <filesystem>
 #include <locale>
-#include <codecvt>
-#include <sstream>
 
 #include <Windows.h>
-#include <unordered_map>
 
 std::vector<std::wstring> locales;
 BOOL CALLBACK MyFuncLocaleEx(LPWSTR pStr, DWORD dwFlags, LPARAM lparam) {
@@ -26,41 +22,9 @@ void PrintAllLocales() {
 	std::wcout << "Total " << locales.size() << " locals found." << std::endl;
 }
 
-namespace fs = std::experimental::filesystem; 
-void ShowListFile(std::string path) {
-	for (auto &p : fs::directory_iterator(path))  /*get directory */
-		std::cout << p.path().filename() << std::endl;   // get file name
-}
-
 int main() {
-	std::unordered_map<int, int> map;
-	map.reserve(100);
-	map[1] = 1;
-	map[2] = 1;
-	map[3] = 1;
-	map[4] = 1;
-	map.clear();
-	map.reserve(1024);
-	bms::ListPool<int> p(2);
-	p.push(1);
-	p.push(3);
-	p.push(4);
-	p.push(2);
 	//PrintAllLocales();
-
-	//bms::FMODWrapper fmod;
-	//fmod.Init();
-	//for (auto &p : fs::directory_iterator("./")) {
-	//	std::cout << p.path().filename() << std::endl;   // get file name
-	//	if (fs::is_directory(p.path())) {
-	//		for (auto &p2 : fs::directory_iterator(p.path())) {
-	//			if (p2.path().extension() == ".ogg") {
-	//				fmod.CreateSound(p2.path().u8string(), 1);
-	//			}
-	//		}
-	//	}
-	//}
-
+	return 0;
 	std::wstring rootPath = L"./StreamingAssets/";
 	std::ios::sync_with_stdio(false);
 	std::vector<const wchar_t*> paths = {L"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",

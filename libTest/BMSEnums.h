@@ -42,8 +42,10 @@ namespace bms {
 	enum class KeyType : uint8_t {
 		SINGLE_5,
 		SINGLE_7,
-		DOUBLE_5,
-		DOUBLE_7
+		DOUBLE_5,  // 5key, 1p + 2p for 1p, 1 guages
+		DOUBLE_7,  // 7key, 1p + 2p for 1p, 1 guages
+		COUPLE_5,  // 5key, 1p + 2p, 2 guages (rarely used)
+		COUPLE_7,  // 7key, 1p + 2p, 2 guages (rarely used)
 	};
 
 	/// <summary> specify note type </summary>

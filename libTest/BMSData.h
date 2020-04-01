@@ -10,14 +10,13 @@ namespace bms {
 	/// contains sorting information and minimal information to help you read the file.
 	/// </summary>
 	struct BMSInfoData {
-		std::wstring mPath;
+		std::wstring mFileName;
 		EncodingType mFileType;
 
-		uint8_t mPlayer;				// single = 1, 2p = 2, double = 3 (not implemented)
+		KeyType mKeyType;				// determine how many keys the file uses.
 		uint8_t mLevel;					// music level ( 1 ~ 99 )
-		uint8_t mDifficulty;			// easy,beginner,light = 1, normal,standard = 2, hard,hyper = 23, ex,another = 4, insane = 5
+		uint8_t mDifficulty;			// easy,beginner,light = 1, normal,standard = 2, hard,hyper = 3, ex,another = 4, insane = 5
 										// if this file hasn't difficulty header, default value is zero(undefined)
-		KeyType mKeyType;
 
 		uint16_t mNoteCount;			// the total number of normal note (filled after preview)
 		uint64_t mTotalTime;			// the total play time (filled after preview)
@@ -39,8 +38,8 @@ namespace bms {
 		// ----- constructor, operator overloading -----
 
 		BMSInfoData() = default;
-		BMSInfoData(const std::wstring& path) : mPlayer(1), mLevel(0), mDifficulty(0), 
-											   mNoteCount(0), mTotalTime(0), mMinBpm(0), mMaxBpm(0) {
+		BMSInfoData(const std::wstring& name) : mLevel(0), mDifficulty(0), 
+											    mNoteCount(0), mTotalTime(0), mMinBpm(0), mMaxBpm(0) {
 			std::cout << "BMSInfoData constructor" << std::endl;
 
 			// Do not use it if class contains pointer variables.
@@ -50,7 +49,7 @@ namespace bms {
 			// Do not use it if class contains std::vector..!
 			//memset(this, 0, sizeof(BMSData));
 
-			mPath = path;
+			mFileName = name;
 		}
 		~BMSInfoData() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSInfoData)
@@ -60,12 +59,11 @@ namespace bms {
 		// ----- user access function -----
 
 		friend std::ostream& operator<<(std::ostream& os, const BMSInfoData& s) {
-			WriteToBinary(os, s.mPath);
+			WriteToBinary(os, s.mFileName);
 			WriteToBinary(os, static_cast<uint8_t>(s.mFileType));
-			WriteToBinary(os, s.mPlayer);
+			WriteToBinary(os, static_cast<uint8_t>(s.mKeyType));
 			WriteToBinary(os, s.mLevel);
 			WriteToBinary(os, s.mDifficulty);
-			WriteToBinary(os, static_cast<uint8_t>(s.mKeyType));
 			WriteToBinary(os, s.mNoteCount);
 			WriteToBinary(os, s.mTotalTime);
 			WriteToBinary(os, s.mBpm);
@@ -81,12 +79,11 @@ namespace bms {
 			return os;
 		}
 		friend std::istream& operator>>(std::istream& is, BMSInfoData& s) {
-			s.mPath = ReadFromBinary<std::wstring>(is);
+			s.mFileName = ReadFromBinary<std::wstring>(is);
 			s.mFileType = static_cast<EncodingType>(ReadFromBinary<uint8_t>(is));
-			s.mPlayer = ReadFromBinary<uint8_t>(is);
+			s.mKeyType = static_cast<KeyType>(ReadFromBinary<uint8_t>(is));
 			s.mLevel = ReadFromBinary<uint8_t>(is);
 			s.mDifficulty = ReadFromBinary<uint8_t>(is);
-			s.mKeyType = static_cast<KeyType>(ReadFromBinary<uint8_t>(is));
 			s.mNoteCount = ReadFromBinary<uint16_t>(is);
 			s.mTotalTime = ReadFromBinary<uint64_t>(is);
 			s.mBpm = ReadFromBinary<double>(is);
