@@ -13,7 +13,9 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSAdapter() : mDecryptor(mCurData) {};
+		BMSAdapter() : mDecryptor(mCurData) {
+			Load();
+		};
 		~BMSAdapter() {
 			Save();
 		};

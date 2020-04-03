@@ -15,11 +15,6 @@ namespace bms {
 		std::vector<BMSInfoData*> mListData;
 
 		BMSNode(const std::wstring& name, const std::vector<BMSInfoData*>& list) : mFolderName(name), mListData(list) {};
-		~BMSNode() {
-			for (auto data : mListData) {
-				delete data;
-			}
-		}
 	};
 
 	/// <summary>
@@ -27,6 +22,20 @@ namespace bms {
 	/// </summary>
 	class BMSTree {
 	public:
+		BMSTree() = default;
+		DISALLOW_COPY_AND_ASSIGN(BMSTree)
+		BMSTree(BMSTree&&) noexcept = default;
+		BMSTree& operator=(BMSTree&&) noexcept = default;
+		~BMSTree() {
+			for (const auto& e : mDicBms) {
+				for (const auto& node : e.second) {
+					for (auto data : node.mListData) {
+						delete data;
+					}
+				}
+			}
+		}
+
 		std::vector<std::string> GetFolderName() {
 			std::vector<std::string> v;
 			for (auto& e : mDicFolderName) {
@@ -54,11 +63,12 @@ namespace bms {
 				std::cout << "nothing changed" << std::endl;
 				return;
 			}
+			clock_t s = clock();
 			std::ofstream os(CACHE_FILE_NAME, std::ios::binary);
 			for (const auto& e : mDicBms) {
 				fs::v1::path prefix = e.first;
 				for (const auto& node : e.second) {
-					std::string uPath = prefix.append(node.mFolderName).u8string();
+					std::string uPath = PathAppend(prefix, node.mFolderName).u8string();
 					uint8_t size = static_cast<uint8_t>(node.mListData.size());
 					WriteToBinary(os, uPath);
 					WriteToBinary(os, size);
@@ -68,21 +78,20 @@ namespace bms {
 				}
 			}
 			os.close();
+			std::cout << "save time(ms) : " << std::to_string(clock() - s) << '\n';
 		}
 
 		/// <summary>
 		/// check file paths and load <see cref="bms::BMSInfoData"/> list from cache file
 		/// If the file does not exist or the path is changed, the object is created again to update the list.
 		/// </summary>
-		bool Load(BMSDecryptor& decryptor) {
-			mChangeSave = false;
+		void Load(BMSDecryptor& decryptor) {
 			clock_t s = clock();
-			// load cache data
-			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
-			//std::unordered_map<fs::v1::path, uint8_t> dicIndex;		// Temporary index dictionary to easily find music folders
-			//dicIndex.reserve(1024);
+			mChangeSave = false;
 			std::unordered_map<std::wstring, std::vector<BMSInfoData*>> cache;	// temporary data storage dictionary
 			cache.reserve(1024);
+			// load cache data
+			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
 			if (is.is_open()) {
 				fs::v1::path wPath;
 				uint8_t size;
@@ -102,15 +111,12 @@ namespace bms {
 					for (uint8_t i = 0; i < size; ++i) {
 						BMSInfoData* temp = new BMSInfoData();
 						is >> *temp;
-						if (!fs::exists(wPath.append(temp->mFileName))) {
+						if (!fs::exists(PathAppend(wPath, temp->mFileName))) {
 							delete temp;
 						} else {
-							//dicIndex.emplace(ws, static_cast<uint8_t>(vec.size()));
 							vec.emplace_back(temp);
 						}
 					}
-
-					//AddMusic(ws, std::move(vec));
 					cache.emplace(wPath.native(), std::move(vec));
 				}
 			}
@@ -153,6 +159,11 @@ namespace bms {
 		/// </summary>
 		std::unordered_map<std::wstring, std::vector<BMSNode>> mDicBms;
 
+		/// <summary> simple path append for new <see cref="std::experimental::filesystem::v1::path"/> object </summary>
+		fs::v1::path PathAppend(const fs::v1::path& p1, const fs::v1::path& p2) {
+			return fs::v1::path(p1).append(p2);
+		}
+
 		/// <summary> add <see cref="bms::BMSNode"/> object into dictionary </summary>
 		void AddMusic(const fs::v1::path& path, std::vector<BMSInfoData*>&& patterns) {
 			std::wstring key = path.parent_path().native();
@@ -181,6 +192,7 @@ namespace bms {
 		void SetFiles(BMSDecryptor& decryptor, const fs::v1::path& path, bool bRootFolder,
 					  std::unordered_map<std::wstring, std::vector<BMSInfoData*>>& cache) {
 			// check root bms folder (depth 1)
+			clock_t s = clock();
 			std::vector<fs::v1::path> bmsList; bmsList.reserve(32);
 			for (auto &p : fs::directory_iterator(path)) {
 				if (fs::is_directory(p.path())) {
@@ -196,6 +208,7 @@ namespace bms {
 				}
 			}
 
+			std::cout << "pattern search time(ms) : " << std::to_string(clock() - s) << '\n';
 			// check if this folder is bms music folder
 			uint8_t size = static_cast<uint8_t>(bmsList.size());
 			if (size == 0) {
@@ -209,7 +222,7 @@ namespace bms {
 				std::vector<BMSInfoData*> vec(size);
 				for (uint8_t i = 0; i < size; ++i) {
 					BMSInfoData* temp = new BMSInfoData(bmsList[i].filename());
-					decryptor.BuildInfoData(temp, path.c_str());
+					decryptor.BuildInfoData(temp, bmsList[i].c_str());
 					vec[i] = temp;
 				}
 				cache.emplace(path.native(), std::move(vec));
@@ -233,7 +246,7 @@ namespace bms {
 
 				if (j == vecSize) {
 					BMSInfoData* temp = new BMSInfoData(filename);
-					decryptor.BuildInfoData(temp, path.c_str());
+					decryptor.BuildInfoData(temp, bmsList[i].c_str());
 					vec.emplace_back(temp);
 					mChangeSave = true;
 				}

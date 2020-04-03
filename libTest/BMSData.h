@@ -38,18 +38,14 @@ namespace bms {
 		// ----- constructor, operator overloading -----
 
 		BMSInfoData() = default;
-		BMSInfoData(const std::wstring& name) : mLevel(0), mDifficulty(0), 
+		BMSInfoData(const std::wstring& name) : mFileName(name), mLevel(0), mDifficulty(0),
 											    mNoteCount(0), mTotalTime(0), mMinBpm(0), mMaxBpm(0) {
-			std::cout << "BMSInfoData constructor" << std::endl;
-
 			// Do not use it if class contains pointer variables.
 			// I don't know why below link throw an error that says an access violation.
 			// reference : https://www.sysnet.pe.kr/2/0/4
 			//memset(((char *)this) + 4, 0, sizeof(BMSData) - 4);
 			// Do not use it if class contains std::vector..!
 			//memset(this, 0, sizeof(BMSData));
-
-			mFileName = name;
 		}
 		~BMSInfoData() = default;
 		DISALLOW_COPY_AND_ASSIGN(BMSInfoData)

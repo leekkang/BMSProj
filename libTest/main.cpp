@@ -7,6 +7,9 @@
 
 #include <Windows.h>
 
+#include <filesystem>
+
+namespace fs = std::experimental::filesystem;
 std::vector<std::wstring> locales;
 BOOL CALLBACK MyFuncLocaleEx(LPWSTR pStr, DWORD dwFlags, LPARAM lparam) {
 	locales.push_back(pStr);
@@ -24,6 +27,8 @@ void PrintAllLocales() {
 
 int main() {
 	//PrintAllLocales();
+	bms::BMSAdapter adt;
+
 	return 0;
 	std::wstring rootPath = L"./StreamingAssets/";
 	std::ios::sync_with_stdio(false);

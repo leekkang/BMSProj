@@ -76,12 +76,12 @@ namespace bms {
 			// If both locales are converted successfully, it is likely to be Japanese. 
 			// because EUC-KR contains Japanese characters, but Shift-jis does not.
 			if (kws.size() != 0 && jws.size() != 0) {
-				return Utility::WideToAnsi(jws, std::locale("Korean")).size() == 0 ?
-					bms::EncodingType::EUC_KR : bms::EncodingType::SHIFT_JIS;
+				return Utility::WideToAnsi(kws, std::locale("Japanese")).size() == 0 ?
+						bms::EncodingType::SHIFT_JIS : bms::EncodingType::EUC_KR;
 			}
 
 			return jws.size() == 0 ? bms::EncodingType::EUC_KR :
-				bms::EncodingType::SHIFT_JIS;
+									 bms::EncodingType::SHIFT_JIS;
 		}
 
 		/// <summary>
