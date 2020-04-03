@@ -1,11 +1,11 @@
 #pragma once
 
-#include <filesystem>
+#include "dirent.h"
 
 namespace bms {
 	constexpr auto ROOT_PATH = L"StreamingAssets";
 	constexpr auto CACHE_FILE_NAME = "test.bin";
-	namespace fs = std::experimental::filesystem;
+	#define FOLDER_SYMBOL_CHECK(sym) (wcscmp(sym, CURRENT_FOLDER_SYM) == 0 || wcscmp(sym, PREV_FOLDER_SYM) == 0)
 
 	/// <summary>
 	/// A structure that stores a group of bms files for one song (has variable pattern)
@@ -66,9 +66,8 @@ namespace bms {
 			clock_t s = clock();
 			std::ofstream os(CACHE_FILE_NAME, std::ios::binary);
 			for (const auto& e : mDicBms) {
-				fs::v1::path prefix = e.first;
 				for (const auto& node : e.second) {
-					std::string uPath = PathAppend(prefix, node.mFolderName).u8string();
+					std::string uPath = Utility::WideToUTF8(PathAppend(e.first, node.mFolderName));
 					uint8_t size = static_cast<uint8_t>(node.mListData.size());
 					WriteToBinary(os, uPath);
 					WriteToBinary(os, size);
@@ -93,12 +92,12 @@ namespace bms {
 			// load cache data
 			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
 			if (is.is_open()) {
-				fs::v1::path wPath;
+				std::wstring wPath;
 				uint8_t size;
 				while (is.peek() != std::ifstream::traits_type::eof()) {
 					wPath = Utility::UTF8ToWide(ReadFromBinary<std::string>(is));
 					size = ReadFromBinary<uint8_t>(is);
-					if (!fs::exists(wPath)) {
+					if (!IsExistFile(wPath)) {
 						// folder is not found -> discard
 						BMSInfoData temp;
 						for (uint8_t i = 0; i < size; ++i) {
@@ -111,13 +110,13 @@ namespace bms {
 					for (uint8_t i = 0; i < size; ++i) {
 						BMSInfoData* temp = new BMSInfoData();
 						is >> *temp;
-						if (!fs::exists(PathAppend(wPath, temp->mFileName))) {
+						if (!IsExistFile(PathAppend(wPath, temp->mFileName))) {
 							delete temp;
 						} else {
 							vec.emplace_back(temp);
 						}
 					}
-					cache.emplace(wPath.native(), std::move(vec));
+					cache.emplace(wPath, std::move(vec));
 				}
 			}
 			is.close();
@@ -125,11 +124,20 @@ namespace bms {
 
 			s = clock();
 			// check all subdirectory and create added bms files or folder.
-			for (auto& p : fs::directory_iterator(ROOT_PATH)) {
-				if (fs::is_directory(p.path())) {
-					SetFiles(decryptor, p.path(), true, cache);
+			DIR *dir = OpenDir(ROOT_PATH);
+			if (dir) {
+				wchar_t* ent;
+				while ((ent = ReadDir(dir)) != nullptr) {
+					if (FOLDER_SYMBOL_CHECK(ent)) {
+						continue;
+					}
+
+					if (IsDirectory(dir->info.attrib)) {
+						SetFiles(decryptor, PathAppend(ROOT_PATH, ent), true, cache);
+					}
 				}
 			}
+			CloseDir(dir);
 			std::cout << "filesystem load time(ms) : " << std::to_string(clock() - s) << '\n';
 
 			s = clock();
@@ -140,8 +148,7 @@ namespace bms {
 			}
 			// store folder name in mDicFolderName
 			for (auto& e : mDicBms) {
-				fs::v1::path path = e.first;
-				mDicFolderName.emplace(path.filename().u8string(), e.first);
+				mDicFolderName.emplace(Utility::WideToUTF8(e.first), e.first);
 			}
 			std::cout << "dictionary copy time(ms) : " << std::to_string(clock() - s) << '\n';
 		}
@@ -159,21 +166,42 @@ namespace bms {
 		/// </summary>
 		std::unordered_map<std::wstring, std::vector<BMSNode>> mDicBms;
 
-		/// <summary> simple path append for new <see cref="std::experimental::filesystem::v1::path"/> object </summary>
-		fs::v1::path PathAppend(const fs::v1::path& p1, const fs::v1::path& p2) {
-			return fs::v1::path(p1).append(p2);
+		/// <summary> simple path append for new wstring object </summary>
+		inline std::wstring PathAppend(const std::wstring& p1, const std::wstring& p2) {
+			std::wstring ws(p1);
+			ws.push_back(L'/');
+			return ws.append(p2);
+		}
+		/// <summary> simple filename get function of <paramref name="path"/> wstring </summary>
+		inline std::wstring GetFileName(const std::wstring& path) {
+			return &(path[path.find_last_of(L'/') + 1]);
+		}
+		/// <summary> simple parent folder path get function of <paramref name="p"/> wstring </summary>
+		inline std::wstring GetDirectory(const std::wstring& path) {
+			return path.substr(0, path.find_last_of(L'/'));
+		}
+
+		/// <summary> check that the <paramref name="path"/> is a valid file / folder path </summary>
+		inline bool IsExistFile(const std::wstring& path) {
+			struct stat buffer;
+			return _wstat(path.data(), (struct _stat64i32*)&buffer) == 0;
+		}
+		// reference : https://docs.microsoft.com/ko-kr/cpp/c-runtime-library/filename-search-functions?view=vs-2019
+		/// <summary> check this attribute mean subdirectory </summary>
+		inline bool IsDirectory(const unsigned int attrib) {
+			return attrib & 0x10;	 // _A_SUBDIR : 0x10, normal file(_A_ARCH) : 0x20
 		}
 
 		/// <summary> add <see cref="bms::BMSNode"/> object into dictionary </summary>
-		void AddMusic(const fs::v1::path& path, std::vector<BMSInfoData*>&& patterns) {
-			std::wstring key = path.parent_path().native();
+		void AddMusic(const std::wstring& path, std::vector<BMSInfoData*>&& patterns) {
+			std::wstring key = GetDirectory(path);
 			if (mDicBms.count(key) == 0) {
 				std::vector<BMSNode> vec;
-				vec.emplace_back(path.filename().native(), std::move(patterns));
+				vec.emplace_back(GetFileName(path), std::move(patterns));
 				mDicBms.emplace(key, std::move(vec));
 			} else {
 				std::vector<BMSNode>& vec = mDicBms[key];
-				vec.emplace_back(path.filename().native(), std::move(patterns));
+				vec.emplace_back(GetFileName(path), std::move(patterns));
 			}
 		}
 
@@ -186,27 +214,36 @@ namespace bms {
 			}
 			wchar_t w = name[len - 1];
 			return w == 's' || w == 'e' || w == 'l';
-		};
+		}
 
 		/// <summary> find bms file and store in dictionary. if new pattern is found, create new <see cref="bms::BMSInfoData"/> object </summary>
-		void SetFiles(BMSDecryptor& decryptor, const fs::v1::path& path, bool bRootFolder,
-					  std::unordered_map<std::wstring, std::vector<BMSInfoData*>>& cache) {
+		void SetFiles(BMSDecryptor& decryptor, const std::wstring& path, bool bRootFolder,
+					   std::unordered_map<std::wstring, std::vector<BMSInfoData*>>& cache) {
 			// check root bms folder (depth 1)
 			clock_t s = clock();
-			std::vector<fs::v1::path> bmsList; bmsList.reserve(32);
-			for (auto &p : fs::directory_iterator(path)) {
-				if (fs::is_directory(p.path())) {
-					if (bRootFolder) {
-						// check bms folder (depth 2)
-						SetFiles(decryptor, p.path(), false, cache);
+			std::vector<std::wstring> bmsList; bmsList.reserve(32);
+			DIR *dir = OpenDir(path);
+			if (dir) {
+				wchar_t* ent;
+				while ((ent = ReadDir(dir)) != nullptr) {
+					if (FOLDER_SYMBOL_CHECK(ent)) {
+						continue;
 					}
-					continue;
-				}
 
-				if (IsBmsFile(p.path().native())) {
-					bmsList.emplace_back(p.path());
+					std::wstring p = PathAppend(path, ent);
+					if (IsDirectory(dir->info.attrib)) {
+						if (bRootFolder) {
+							SetFiles(decryptor, p, false, cache);
+						}
+						continue;
+					}
+
+					if (IsBmsFile(ent)) {
+						bmsList.emplace_back(p);
+					}
 				}
 			}
+			CloseDir(dir);
 
 			std::cout << "pattern search time(ms) : " << std::to_string(clock() - s) << '\n';
 			// check if this folder is bms music folder
@@ -216,16 +253,16 @@ namespace bms {
 			}
 
 			// add music to dictionary
-			auto iter = cache.find(path.native());	// std::unordered_map<fs::v1::path, uint8_t>::const_iterator
+			auto iter = cache.find(path);	// std::unordered_map<fs::v1::path, uint8_t>::const_iterator
 			if (iter == cache.end()) {
 				// has no cache == new music
 				std::vector<BMSInfoData*> vec(size);
 				for (uint8_t i = 0; i < size; ++i) {
-					BMSInfoData* temp = new BMSInfoData(bmsList[i].filename());
+					BMSInfoData* temp = new BMSInfoData(GetFileName(bmsList[i]));
 					decryptor.BuildInfoData(temp, bmsList[i].c_str());
 					vec[i] = temp;
 				}
-				cache.emplace(path.native(), std::move(vec));
+				cache.emplace(path, std::move(vec));
 				mChangeSave = true;
 				//AddMusic(path, std::move(vec));
 
@@ -233,10 +270,11 @@ namespace bms {
 			}
 
 			// check pattern and add if it is new
+			s = clock();
 			std::vector<BMSInfoData*>& vec = iter->second;
 			uint8_t vecSize = static_cast<uint8_t>(vec.size());
 			for (uint8_t i = 0; i < size; ++i) {
-				std::wstring filename = bmsList[i].filename();
+				std::wstring filename = GetFileName(bmsList[i]);
 				uint8_t j = 0;
 				for (; j < vecSize; ++j) {
 					if (filename == vec[j]->mFileName) {
@@ -251,6 +289,7 @@ namespace bms {
 					mChangeSave = true;
 				}
 			}
+			std::cout << "pattern matching time(ms) : " << std::to_string(clock() - s) << '\n';
 		}
 	};
 }

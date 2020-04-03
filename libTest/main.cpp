@@ -5,28 +5,7 @@
 #include <thread>
 #include <locale>
 
-#include <Windows.h>
-
-#include <filesystem>
-
-namespace fs = std::experimental::filesystem;
-std::vector<std::wstring> locales;
-BOOL CALLBACK MyFuncLocaleEx(LPWSTR pStr, DWORD dwFlags, LPARAM lparam) {
-	locales.push_back(pStr);
-	return TRUE;
-}
-
-void PrintAllLocales() {
-	EnumSystemLocalesEx(MyFuncLocaleEx, LOCALE_ALL, NULL, NULL);
-
-	for (std::vector<std::wstring>::const_iterator str = locales.begin(); str != locales.end(); ++str)
-		std::wcout << *str << std::endl;
-
-	std::wcout << "Total " << locales.size() << " locals found." << std::endl;
-}
-
 int main() {
-	//PrintAllLocales();
 	bms::BMSAdapter adt;
 
 	return 0;
