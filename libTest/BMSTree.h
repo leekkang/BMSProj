@@ -3,9 +3,10 @@
 #include "dirent.h"
 
 namespace bms {
-	constexpr auto ROOT_PATH = L"StreamingAssets";
+	//constexpr auto ROOT_PATH = L"StreamingAssets";
+	constexpr auto ROOT_PATH = L"E:/∑Á∫Í¿’";
+
 	constexpr auto CACHE_FILE_NAME = "test.bin";
-	#define FOLDER_SYMBOL_CHECK(sym) (wcscmp(sym, CURRENT_FOLDER_SYM) == 0 || wcscmp(sym, PREV_FOLDER_SYM) == 0)
 
 	/// <summary>
 	/// A structure that stores a group of bms files for one song (has variable pattern)
@@ -15,6 +16,45 @@ namespace bms {
 		std::vector<BMSInfoData*> mListData;
 
 		BMSNode(const std::wstring& name, const std::vector<BMSInfoData*>& list) : mFolderName(name), mListData(list) {};
+	};
+
+	class DirLoop {
+		DIR* dir;
+	public:
+		DirLoop(const std::wstring& path) {
+			dir = OpenDir(path);
+		}
+		~DirLoop() {
+			CloseDir(dir);
+		}
+
+		// reference : https://docs.microsoft.com/ko-kr/cpp/c-runtime-library/filename-search-functions?view=vs-2019
+		/// <summary> check this attribute mean subdirectory </summary>
+		inline bool IsDirectory() {
+			return dir->info.attrib & 0x10;	 // _A_SUBDIR : 0x10, normal file(_A_ARCH) : 0x20
+		}
+
+		inline wchar_t* Read() {
+			if (!dir) {
+				return nullptr;
+			}
+			wchar_t* result;
+			// 1. goto implementation
+		FOLDER_SYMBOL:
+			if ((result = ReadDir(dir)) != nullptr) {
+				if (wcscmp(result, CURRENT_FOLDER_SYM) == 0 || wcscmp(result, PREV_FOLDER_SYM) == 0) {
+					goto FOLDER_SYMBOL;
+				}
+			}
+			// 2. while implementation
+			/*while ((result = ReadDir(dir)) != nullptr) {
+				if (wcscmp(result, CURRENT_FOLDER_SYM) == 0 || wcscmp(result, PREV_FOLDER_SYM) == 0) {
+					continue;
+				}
+			}*/
+
+			return result;
+		}
 	};
 
 	/// <summary>
@@ -89,6 +129,15 @@ namespace bms {
 			mChangeSave = false;
 			std::unordered_map<std::wstring, std::vector<BMSInfoData*>> cache;	// temporary data storage dictionary
 			cache.reserve(1024);
+
+			// 1. load cache data
+			//  1) cache data exists
+			//	  -> check bms parent folder and modify parent folder list
+			//  2) no cache data exists
+			//	  -> check bms parent folder and create parent folder list
+			// 2. set folder index to 0 of list
+			// 3. set parent folder info
+
 			// load cache data
 			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
 			if (is.is_open()) {
@@ -124,20 +173,29 @@ namespace bms {
 
 			s = clock();
 			// check all subdirectory and create added bms files or folder.
-			DIR *dir = OpenDir(ROOT_PATH);
-			if (dir) {
-				wchar_t* ent;
-				while ((ent = ReadDir(dir)) != nullptr) {
-					if (FOLDER_SYMBOL_CHECK(ent)) {
-						continue;
-					}
-
-					if (IsDirectory(dir->info.attrib)) {
-						SetFiles(decryptor, PathAppend(ROOT_PATH, ent), true, cache);
+			{
+				DirLoop loop(ROOT_PATH);
+				wchar_t* name;
+				while (name = loop.Read()) {
+					if (loop.IsDirectory()) {
+						std::cout << "folder name : " << Utility::WideToUTF8(name) << '\n';
+						std::cout << "bms parent folder : " << (IsExistBmsFolder(PathAppend(ROOT_PATH, name)) ? "true" : "false") << '\n';
 					}
 				}
 			}
-			CloseDir(dir);
+			std::cout << "parent folder check time(ms) : " << std::to_string(clock() - s) << '\n';
+
+			s = clock();
+			// check all subdirectory and create added bms files or folder.
+			{
+				DirLoop loop(ROOT_PATH);
+				wchar_t* name;
+				while (name = loop.Read()) {
+					if (loop.IsDirectory()) {
+						SetFiles(decryptor, PathAppend(ROOT_PATH, name), true, cache);
+					}
+				}
+			}
 			std::cout << "filesystem load time(ms) : " << std::to_string(clock() - s) << '\n';
 
 			s = clock();
@@ -186,10 +244,41 @@ namespace bms {
 			struct stat buffer;
 			return _wstat(path.data(), (struct _stat64i32*)&buffer) == 0;
 		}
-		// reference : https://docs.microsoft.com/ko-kr/cpp/c-runtime-library/filename-search-functions?view=vs-2019
-		/// <summary> check this attribute mean subdirectory </summary>
-		inline bool IsDirectory(const unsigned int attrib) {
-			return attrib & 0x10;	 // _A_SUBDIR : 0x10, normal file(_A_ARCH) : 0x20
+
+		/// <summary> check whether <param name="name"/> is bms file </summary>
+		bool IsBmsFile(const wchar_t* name) {
+			// bms file extension : .bms, .bme, .bml
+			size_t len = wcslen(name);
+			if (len < 4 || name[len - 4] != '.' || name[len - 3] != 'b' || name[len - 2] != 'm') {
+				return false;
+			}
+			wchar_t w = name[len - 1];
+			return w == 's' || w == 'e' || w == 'l';
+		}
+
+		/// <summary> function to check if this <paramref name="path"/> folder is parent folder contains a bms music folder (It is different from itself as a bms folder) </summary>
+		inline bool IsExistBmsFolder(const std::wstring& path) {
+			// find depth 2 bms folder
+			DirLoop loop(path);
+			wchar_t* name;
+			while (name = loop.Read()) {
+				if (!loop.IsDirectory()) {
+					// check this folder is bms folder itself. 
+					// in this situation, parent folder of this folder becomes that i'm looking for.
+					if (IsBmsFile(name)) {
+						return false;
+					}
+					continue;
+				}
+
+				DirLoop subloop(PathAppend(path, name));
+				while (name = subloop.Read()) {
+					if (!subloop.IsDirectory() && IsBmsFile(name)) {
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary> add <see cref="bms::BMSNode"/> object into dictionary </summary>
@@ -205,47 +294,33 @@ namespace bms {
 			}
 		}
 
-		/// <summary> check whether <param name="name"/> is bms file </summary>
-		bool IsBmsFile(const std::wstring& name) {
-			// bms file extension : .bms, .bme, .bml
-			uint16_t len = static_cast<uint16_t>(name.size());
-			if (len < 4 || name[len - 4] != '.' || name[len - 3] != 'b' || name[len - 2] != 'm') {
-				return false;
-			}
-			wchar_t w = name[len - 1];
-			return w == 's' || w == 'e' || w == 'l';
+		/// <summary>
+		/// find bms file and store in dictionary. if new pattern is found, create new <see cref="bms::BMSInfoData"/> object
+		/// </summary>
+		/// <returns> returns true if the bms folder exists in the folder </returns>
+		bool SetFolder(BMSDecryptor& decryptor, const std::wstring& path) {
+
+
+			return true;
 		}
 
 		/// <summary> find bms file and store in dictionary. if new pattern is found, create new <see cref="bms::BMSInfoData"/> object </summary>
 		void SetFiles(BMSDecryptor& decryptor, const std::wstring& path, bool bRootFolder,
 					   std::unordered_map<std::wstring, std::vector<BMSInfoData*>>& cache) {
 			// check root bms folder (depth 1)
-			clock_t s = clock();
 			std::vector<std::wstring> bmsList; bmsList.reserve(32);
-			DIR *dir = OpenDir(path);
-			if (dir) {
-				wchar_t* ent;
-				while ((ent = ReadDir(dir)) != nullptr) {
-					if (FOLDER_SYMBOL_CHECK(ent)) {
-						continue;
+			DirLoop loop(path);
+			wchar_t* name;
+			while (name = loop.Read()) {
+				if (loop.IsDirectory()) {
+					if (bRootFolder) {
+						SetFiles(decryptor, PathAppend(path, name), false, cache);
 					}
-
-					std::wstring p = PathAppend(path, ent);
-					if (IsDirectory(dir->info.attrib)) {
-						if (bRootFolder) {
-							SetFiles(decryptor, p, false, cache);
-						}
-						continue;
-					}
-
-					if (IsBmsFile(ent)) {
-						bmsList.emplace_back(p);
-					}
+				} else if (IsBmsFile(name)) {
+					bmsList.emplace_back(PathAppend(path, name));
 				}
 			}
-			CloseDir(dir);
 
-			std::cout << "pattern search time(ms) : " << std::to_string(clock() - s) << '\n';
 			// check if this folder is bms music folder
 			uint8_t size = static_cast<uint8_t>(bmsList.size());
 			if (size == 0) {
@@ -270,7 +345,6 @@ namespace bms {
 			}
 
 			// check pattern and add if it is new
-			s = clock();
 			std::vector<BMSInfoData*>& vec = iter->second;
 			uint8_t vecSize = static_cast<uint8_t>(vec.size());
 			for (uint8_t i = 0; i < size; ++i) {
@@ -289,7 +363,6 @@ namespace bms {
 					mChangeSave = true;
 				}
 			}
-			std::cout << "pattern matching time(ms) : " << std::to_string(clock() - s) << '\n';
 		}
 	};
 }
