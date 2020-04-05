@@ -13,7 +13,7 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSAdapter() : mDecryptor(mCurData) {
+		BMSAdapter() : mDecryptor(mCurData), mPathTree(mDecryptor){
 			Load();
 		};
 		~BMSAdapter() {

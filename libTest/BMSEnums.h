@@ -48,6 +48,22 @@ namespace bms {
 		COUPLE_7,  // 7key, 1p + 2p, 2 guages (rarely used)
 	};
 
+	/// <summary> specify sorting option of bms music or patterns </summary>
+	enum class SortOption : uint8_t {
+		PATH_ASC,
+		LEVEL_ASC,
+		TITLE_ASC,
+		GENRE_ASC,
+		ARTIST_ASC,
+		BPM_ASC,
+		PATH_DEC,
+		LEVEL_DEC,
+		TITLE_DEC,
+		GENRE_DEC,
+		ARTIST_DEC,
+		BPM_DEC,
+	};
+
 	/// <summary> specify note type </summary>
 	enum class NoteType : uint8_t {
 		NORMAL,
