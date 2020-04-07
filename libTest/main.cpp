@@ -3,57 +3,59 @@
 
 #include <conio.h>
 #include <thread>
-#include <locale>
 
 int main() {
-	bms::BMSAdapter adt;
+	std::vector<int> vec{1, 2, 3};
+	vec.resize(12);
 
 	return 0;
-	std::wstring rootPath = L"./StreamingAssets/";
+
 	std::ios::sync_with_stdio(false);
+
 	std::vector<const wchar_t*> paths = {L"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
 										 L"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
 										 L"./StreamingAssets/Glitch Throne - Engine [eFel]/engine_XYZ.bms",
 										 L"./StreamingAssets/Lyrical Signal Revival - Parousia/_parousia_A.bme"
 
 	};
-	/*std::string line;
-	line.reserve(1024);
-	clock_t s = clock();
-	for (int i = 0; i < 100; ++i) {
-		bms::BMSifstream in (paths[0]);
-		while (in.GetLine(line));
-		std::cout << "ifstream time(ms) : " << std::to_string(clock() - s) << '\n';
-	}
-	std::string line2;
-	return 0;*/
 
-	bms::BMSData data;
-	bms::BMSDecryptor decryp(data);
-	std::vector<bms::BMSInfoData> infos(4);
-	clock_t s = clock();
-	for (int i = 0; i < 100; ++i) {
-		infos[0] = decryp.BuildInfoData(paths[0]);
-		std::cout << "info time(ms) : " << std::to_string(clock() - s) << '\n';
-	}
-	std::cout << std::endl;
-	return 0;
-
-	int pathIndex = 0;
-	int max = static_cast<int>(paths.size() - 1);
-	//std::string folderPath = Utility::GetDirectory(paths[pathIndex]);
-	//std::string path = "./test.bms";
+	uint16_t folderIndex = 0;
+	uint16_t musicIndex = 0;
 	bms::BMSAdapter adapter;
-	s = clock();
-	//for (std::string path : paths) {
-	//	adapter.Make(path);
-	//}
-	std::cout << "make time(ms) : " << std::to_string(clock() - s) << std::endl;
 
-	//std::cout << " bms file list : " << adapter.mListData[0].mTitle << std::endl;
-	// TODO : must be implemented in a thread
-	adapter.Play(pathIndex);
-	std::cout << "play music, bms file path : " << paths[pathIndex] << std::endl;
+	uint16_t folderMax = adapter.GetFolderList().size();
+	std::vector<bms::BMSNode>& musicList = adapter.GetMusicList(folderIndex);
+	bms::BMSInfoData* curMusic = musicList[musicIndex].mListData[0];
+
+	auto folderChange = [&](uint16_t operand) {
+		uint16_t oldIndex = folderIndex;
+		folderIndex += operand;
+		if (folderIndex < 0) folderIndex = folderMax - 1;
+		else if (folderIndex >= folderMax) folderIndex = 0;
+		
+		if (oldIndex != folderIndex) {
+			musicList = adapter.GetMusicList(folderIndex);
+			musicIndex = 0;
+			curMusic = musicList[musicIndex].mListData[0];
+			adapter.TerminateMusic();
+			adapter.Play(curMusic);
+		}
+	};
+
+	auto musicChange = [&](uint16_t operand) {
+		uint16_t oldIndex = musicIndex;
+		musicIndex += operand;
+		if (musicIndex < 0) musicIndex = musicList.size() - 1;
+		else if (musicIndex >= musicList.size()) musicIndex = 0;
+
+		if (oldIndex != musicIndex) {
+			curMusic = musicList[musicIndex].mListData[0];
+			adapter.TerminateMusic();
+			adapter.Play(curMusic);
+		}
+	};
+
+	adapter.Play(curMusic);
 
 	// main loop
 	while (true) {
@@ -62,18 +64,15 @@ int main() {
 			adapter.TerminateMusic();
 			break;
 		} else if (i == 224) {
-			int newIndex = pathIndex;
 			i = _getch();
 			if (i == 72) {			// up arrow
-				newIndex = pathIndex + 1 > max ? max : pathIndex + 1;
+				musicChange(1);
 			} else if (i == 80) {	// down arrow
-				newIndex = pathIndex - 1 < 0 ? 0 : pathIndex - 1;
-			}
-
-			if (newIndex != pathIndex) {
-				adapter.TerminateMusic();
-				adapter.Play(newIndex);
-				pathIndex = newIndex;
+				musicChange(-1);
+			} else if (i == 75) {	// left arrow
+				folderChange(1);
+			} else if (i == 77) {	// right arrow
+				folderChange(-1);
 			}
 		}
 		// if multiple threads work

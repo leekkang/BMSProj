@@ -81,16 +81,16 @@ namespace bms {
 		/// </summary>
 		RDM_TYPE_1 = 1,
 		/// <summary> 
-		/// Channels 1x and 2x are used, and the value between the first and last notes is filled with zeros.
-		/// The end note is a nonzero key value, which plays if there is an assigned sound value.
-		/// </summary>
-		RDM_TYPE_2 = 2,
-		/// <summary> 
 		/// Channels 5x and 6x are used, filled with the first note value from the first note to the end.
 		/// ex) #00251:00AAAAAA -> The long note is specified from the quarter point to the end of the second bar(measure).
 		/// caution : obsolete
 		/// </summary>
-		MGQ_TYPE = 3,
+		MGQ_TYPE = 2,
+		/// <summary> 
+		/// Channels 1x and 2x are used, and the value between the first and last notes is filled with zeros.
+		/// The end note is a nonzero key value, which plays if there is an assigned sound value.
+		/// </summary>
+		RDM_TYPE_2 = 3,
 	};
 
 	enum class EncodingType : uint8_t {

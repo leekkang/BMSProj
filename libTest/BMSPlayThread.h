@@ -134,7 +134,7 @@ namespace bms {
 		/// <summary>
 		/// function to create a thread and play music by reading <paramref name="data"/> of <see cref="BMS::BMSData"/>
 		/// </summary>
-		void Play(const std::string& folderPath, const BMSData& data) {
+		void Play(const BMSData& data) {
 			// terminate if the thread is alive
 			ForceEnd();
 
@@ -145,6 +145,8 @@ namespace bms {
 				return;
 			}
 
+			std::wstring filePath = data.mInfo->mFilePath;
+			std::string folderPath = Utility::WideToUTF8(filePath.substr(0, filePath.find_last_of(L'/'))) + '/';
 			clock_t s = clock();
 			// initialization. preloading sound files
 			if (mPrevFolderPath != folderPath) {
@@ -152,7 +154,7 @@ namespace bms {
 				mListNote = data.mListPlayerNote;
 				mMaxBgmIndex = static_cast<int>(mListBgm.size());
 				mMaxNoteIndex = static_cast<int>(mListNote.size());
-				mDicWave = data.mDicWav;
+				//mDicWave = data.mDicWav;
 				LOG("copy vector time(ms) : " << clock() - s)
 
 				s = clock();

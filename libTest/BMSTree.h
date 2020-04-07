@@ -96,8 +96,18 @@ namespace bms {
 			}
 		}
 
+		/// <summary> return all list of bms folder name </summary>
+		inline std::vector<std::string> GetFolderList() {
+			uint16_t size = static_cast<uint16_t>(mListFolder.size());
+			std::vector<std::string> vec(size);
+			for (int i = 0; i < size; ++i) {
+				vec[i] = Utility::WideToUTF8(GetFileName(mListFolder[i].first));
+			}
+			return vec;
+		}
+
 		/// <summary> return proper list of bms music folder </summary>
-		inline std::vector<BMSNode>& GetMusicList(uint8_t index) {
+		inline std::vector<BMSNode>& GetMusicList(uint16_t index) {
 			if (index >= mListFolder.size()) {
 				throw std::out_of_range("mListFolder index is out of range");
 			}
@@ -110,6 +120,21 @@ namespace bms {
 			// if iter == mDicBms.end(), this is an error that should not happen because it is set once above.
 			auto iter = mDicBms.find(mListFolder[index].first);
 			return iter->second;
+		}
+
+		/// <summary> return path of bms pattern </summary>
+		BMSInfoData* GetPattern(uint16_t folderIndex, uint16_t musicIndex, uint8_t patternIndex) {
+			std::vector<BMSNode>& music = GetMusicList(folderIndex);
+			if (musicIndex >= music.size()) {
+				return nullptr;
+			}
+
+			const std::vector<BMSInfoData*>& pattern = music[musicIndex].mListData;
+			if (patternIndex >= pattern.size()) {
+				return nullptr;
+			}
+
+			return pattern[patternIndex];
 		}
 
 		/// <summary> change the sorting option of all bms music folder lists to <paramref name="opt"/> </summary>
@@ -176,11 +201,11 @@ namespace bms {
 			// set folder map. used to check if a folder exists and to create a new folder list.
 			{
 				// make folder map(tmpFolder)
-				std::unordered_map<std::wstring, uint8_t> tmpFolder;
+				std::unordered_map<std::wstring, uint16_t> tmpFolder;
 				DirLoop loop(ROOT_PATH);
 				wchar_t* name;
 				bool bIncludeRoot = false;	// true if a root folder has bms music folder
-				uint8_t index = 1;
+				uint16_t index = 1;
 				while (name = loop.Read()) {
 					if (loop.IsDirectory()) {
 						std::wstring path = PathAppend(ROOT_PATH, name);
@@ -213,14 +238,14 @@ namespace bms {
 			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
 			if (is.is_open()) {
 				std::wstring wPath;
-				uint8_t size;
+				uint16_t size;
 				while (is.peek() != std::ifstream::traits_type::eof()) {
 					wPath = Utility::UTF8ToWide(ReadFromBinary<std::string>(is));
-					size = ReadFromBinary<uint8_t>(is);
+					size = ReadFromBinary<uint16_t>(is);
 					if (!IsExistFile(wPath)) {
 						// folder is not found -> discard
 						BMSInfoData temp;
-						for (uint8_t i = 0; i < size; ++i) {
+						for (uint16_t i = 0; i < size; ++i) {
 							is >> temp;
 						}
 						continue;
@@ -230,7 +255,7 @@ namespace bms {
 					for (uint8_t i = 0; i < size; ++i) {
 						BMSInfoData* temp = new BMSInfoData();
 						is >> *temp;
-						if (!IsExistFile(PathAppend(wPath, temp->mFileName))) {
+						if (!IsExistFile(PathAppend(wPath, temp->mFilePath))) {
 							delete temp;
 						} else {
 							vec.emplace_back(temp);
@@ -366,7 +391,7 @@ namespace bms {
 			auto iter = mDicBms.find(folderPath);
 			std::vector<BMSNode>& musicList = iter == mDicBms.end() ? dummyList : iter->second;
 			size_t initMusicNum = musicList.size();
-			std::vector<std::wstring> bmsList; bmsList.reserve(32);
+			std::vector<std::wstring> patternPathList; patternPathList.reserve(32);
 
 			auto findMusicNameIndex = [initMusicNum](const std::vector<BMSNode>& vec, const std::wstring& ws, bool* checker) {
 				for (int i = 0; i < initMusicNum; ++i) {
@@ -380,7 +405,7 @@ namespace bms {
 			auto checkPatternExist = [](const std::vector<BMSInfoData*>& vec, const std::wstring& ws, bool* checker) {
 				size_t len = vec.size();
 				for (int i = 0; i < len; ++i) {
-					if (!checker[i] && vec[i]->mFileName == ws) {
+					if (!checker[i] && vec[i]->mFilePath == ws) {
 						checker[i] = true;
 						return true;
 					}
@@ -401,7 +426,7 @@ namespace bms {
 				// bms file check ready
 				bool bCheckSoundExt = false;
 				std::string extension;
-				bmsList.clear();
+				patternPathList.clear();
 
 				// subloop to find bms files + confirm sound extension
 				std::wstring subPath = PathAppend(folderPath, name);
@@ -414,7 +439,7 @@ namespace bms {
 
 					// bms pattern check
 					if (IsBmsFile(subName)) {
-						bmsList.emplace_back(subName);
+						patternPathList.emplace_back(PathAppend(subPath, subName));
 					} else if (!bCheckSoundExt && IsSoundFile(subName)) {
 						// sound file extension check
 						std::wstring ext = &(subName[wcslen(subName) - 4]);
@@ -424,7 +449,7 @@ namespace bms {
 				}
 
 				// check whether this folder is bms music folder
-				uint8_t musicCount = static_cast<uint8_t>(bmsList.size());
+				uint8_t musicCount = static_cast<uint8_t>(patternPathList.size());
 				if (musicCount == 0) {
 					continue;
 				}
@@ -435,8 +460,8 @@ namespace bms {
 					// has no cache == create new BMSNode object
 					std::vector<BMSInfoData*> vec(musicCount);
 					for (uint8_t i = 0; i < musicCount; ++i) {
-						BMSInfoData* temp = new BMSInfoData(bmsList[i]);
-						mDecryptor.BuildInfoData(temp, PathAppend(subPath, bmsList[i]).c_str());
+						BMSInfoData* temp = new BMSInfoData();
+						mDecryptor.BuildInfoData(temp, patternPathList[i].c_str());
 						vec[i] = temp;
 					}
 					// sort pattern list and add in dictionary
@@ -452,10 +477,9 @@ namespace bms {
 				bool* patternChecker = new bool[vec.size()]{};
 				bool bIncPatternNum = false;					// variable to check if more than one pattern is added
 				for (uint8_t i = 0; i < musicCount; ++i) {
-					std::wstring filename = bmsList[i];
-					if (!checkPatternExist(vec, filename, patternChecker)) { // new pattren is found
-						BMSInfoData* temp = new BMSInfoData(filename);
-						mDecryptor.BuildInfoData(temp, PathAppend(subPath, filename).c_str());
+					if (!checkPatternExist(vec, patternPathList[i], patternChecker)) { // new pattren is found
+						BMSInfoData* temp = new BMSInfoData();
+						mDecryptor.BuildInfoData(temp, patternPathList[i].c_str());
 						vec.emplace_back(temp);
 						bIncPatternNum = true;
 					}
@@ -534,7 +558,7 @@ namespace bms {
 		std::function<bool(BMSInfoData* const&, BMSInfoData* const&)> GetPatternSortFunc(SortOption opt) {
 			if (opt == SortOption::PATH_ASC) {
 				return [](BMSInfoData* const& lhs, BMSInfoData* const& rhs)->bool {
-					return lhs->mFileName < rhs->mFileName;
+					return lhs->mFilePath < rhs->mFilePath;
 				};
 			} else if (opt == SortOption::LEVEL_ASC) {
 				return [](BMSInfoData* const&lhs, BMSInfoData* const& rhs)->bool {
@@ -558,7 +582,7 @@ namespace bms {
 				};
 			} else if (opt == SortOption::PATH_DEC) {
 				return [](BMSInfoData* const& lhs, BMSInfoData* const& rhs)->bool {
-					return lhs->mFileName > rhs->mFileName;
+					return lhs->mFilePath > rhs->mFilePath;
 				};
 			} else if (opt == SortOption::LEVEL_DEC) {
 				return [](BMSInfoData* const&lhs, BMSInfoData* const& rhs)->bool {

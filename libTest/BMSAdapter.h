@@ -25,23 +25,42 @@ namespace bms {
 
 		// ----- user access function -----
 
-		/// <summary> call <see cref="bms::BMSTree::Load()"/> function </summary>
-		void Load() {
-			mPathTree.Load(mDecryptor);
-		}
-
-		/// <summary> call <see cref="bms::BMSTree::Save()"/> function </summary>
-		void Save() {
-			mPathTree.Save();
+		/// <summary>
+		/// check if pattern is exists, and call <see cref="Play(BMSInfoData* const&)"/> function
+		/// </summary>
+		void Play(uint16_t folderIndex, uint16_t musicIndex, uint8_t patternIndex) {
+			BMSInfoData* data = mPathTree.GetPattern(folderIndex, musicIndex, patternIndex);
+			if (data == nullptr) {
+				LOG("There is no BMSData at the matching index : " << folderIndex << ", " << musicIndex << ", " << patternIndex);
+				return;
+			}
+			Play(data);
 		}
 
 		/// <summary>
-		/// make <see cref="BMS::BMSData"/> object by reading the bms file in <paramref name="path"/>
+		/// Preview bms music using <paramref name="info"/> instance.
+		/// if the previous data is different from info in <see cref="mCurData"/>, build a new one
 		/// </summary>
-		/// <returns> return true if a <see cref="bms::BMSData"/> object is correctly build </returns>
-		bool Make(const std::string& path);
+		void Play(BMSInfoData* const& info) {
+			if (info == nullptr || info->mFilePath.size() == 0) {
+				LOG("Invalid BMSInfoData format");
+				return;
+			}
+			clock_t s;
+			if (info != mCurData.mInfo) {
+				s = clock();
+				mCurData.Reset(info, true);
+				if (!mDecryptor.Build(true)) {
+					LOG("parse bms failed : " + Utility::WideToUTF8(info->mFilePath));
+					return;
+				}
+				LOG("bms data build time(ms) : " << clock() - s);
+			}
 
-		void Play(int index);
+			s = clock();
+			mThread.Play(mCurData);
+			LOG("mThread.Play time(ms) : " << clock() - s);
+		}
 
 		inline bool IsPlayingMusic() {
 			return mThread.IsPlaying();
@@ -54,6 +73,17 @@ namespace bms {
 		}
 
 		// ----- get, set function -----
+
+		/// <summary> return all list of bms folder name </summary>
+		std::vector<std::string> GetFolderList() {
+			return mPathTree.GetFolderList();
+		}
+
+		/// <summary> return proper list of bms music folder </summary>
+		std::vector<BMSNode>& GetMusicList(uint16_t index) {
+			return mPathTree.GetMusicList(index);
+		}
+
 	private:
 		///<summary> The class that stores all data of a single <see cref="bms::BMSInfoData"/> object </summary>
 		BMSData mCurData;
@@ -65,9 +95,14 @@ namespace bms {
 		///<summary> The class to store and manage bms list and folder path </summary>
 		BMSTree mPathTree;
 
-		///<summary> List that stores the completed bms info data instance </summary>
-		std::vector<BMSInfoData> mListData;
-		///<summary> Folder path where all bms related files are stored </summary>
-		std::vector<std::string> mListFolderPath;
+		/// <summary> call <see cref="bms::BMSTree::Load()"/> function </summary>
+		void Load() {
+			mPathTree.Load(mDecryptor);
+		}
+
+		/// <summary> call <see cref="bms::BMSTree::Save()"/> function </summary>
+		void Save() {
+			mPathTree.Save();
+		}
 	};
 }

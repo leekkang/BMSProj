@@ -5,105 +5,6 @@ using namespace bms;
 
 /// <summary>
 /// read file and build for fill data in header. no file dictionary is created.
-/// </summary>
-/// <returns> return <see cref="bms::BMSPreviewData"/> object if all line is correctly saved </returns>
-BMSInfoData BMSDecryptor::BuildInfoData(const wchar_t* path) {
-	BMSifstream in(path);
-	if (!in.IsOpen()) {
-		TRACE("The file does not exist in this path : " + Utility::WideToUTF(path));
-		return BMSInfoData();
-	}
-
-	BMSInfoData data(path);
-	// declare instant variable for parse
-	bool isHeader = true;
-	uint16_t wavCnt = 0, measureCnt = 0;
-	uint8_t rndCnt = 0;
-	char prevMeasure[4] = {0,};
-	bool b5key = true, bSingle = true;
-	int player = 1;
-
-	std::string line;
-	line.reserve(1024);
-	while (in.GetLine(line, true)) {
-		const char* pLine = line.data();
-		// check incorrect line
-		if (*pLine != '#') {
-			continue;
-		}
-		++pLine;
-		// separate header line and body line
-		if (isHeader && *pLine == '0') {	// '0' means that measure 000 is start
-			isHeader = false;
-		}
-
-		size_t length = line.size() - 1;
-		if (isHeader) {
-			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
-				++wavCnt;
-			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) == ' ') {
-				data.mBpm = data.mMinBpm = data.mMaxBpm = Utility::parseInt(pLine + 4);
-			} else if (Utility::StartsWith(pLine, "PLAYER") && length > 7) {
-				// single = 1, couple = 2, double = 3
-				player = Utility::parseInt(pLine + 7);
-			} else if (Utility::StartsWith(pLine, "PLAYLEVEL") && length > 10) {
-				data.mLevel = Utility::parseInt(pLine + 10);
-			} else if (Utility::StartsWith(pLine, "DIFFICULTY") && length > 11) {
-				data.mDifficulty = Utility::parseInt(pLine + 11);
-			} else if (Utility::StartsWith(pLine, "GENRE") && length > 6) {
-				data.mGenre = std::string(pLine + 6);
-			} else if (Utility::StartsWith(pLine, "TITLE") && length > 6) {
-				data.mTitle = std::string(pLine + 6);
-			} else if (Utility::StartsWith(pLine, "ARTIST") && length > 7) {
-				data.mArtist = std::string(pLine + 7);
-			}
-		} else {
-			if (length > 7 && *(pLine + 5) == ':') {
-				// check measure number
-				if (!Utility::StartsWith(prevMeasure, pLine)) {
-					uint16_t measure = Utility::parseInt(pLine, 3);
-					if (measureCnt < measure) {
-						measureCnt = measure;
-					}
-
-					memcpy(prevMeasure, pLine, 3);
-				}
-
-				// check key type
-				if (bSingle && *(pLine + 3) == '2') {
-					bSingle = false;
-				}
-				if (b5key && (*(pLine + 4) == '8' || *(pLine + 4) == '9') &&
-							  *(pLine + 3) == (bSingle ? '1' : '2')) {
-					b5key = false;
-				}
-			} else if (Utility::StartsWith(pLine, "RANDOM")) {
-				++rndCnt;
-			}
-		}
-	}
-
-	data.mWavCount = wavCnt;
-	data.mRndCount = rndCnt;
-	data.mMeasureCount = measureCnt;
-
-	// set key type
-	data.mKeyType = player == 2 ? (b5key ? KeyType::COUPLE_5 : KeyType::COUPLE_7) :
-						bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
-								  (b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
-
-	// set encoding type
-	EncodingType type = in.GetEncodeType();
-	if (type == EncodingType::UNKNOWN) {
-		type = GetEncodeType(data.mGenre + data.mTitle + data.mArtist);
-	}
-	data.mFileType = type;
-
-	return data;
-}
-
-/// <summary>
-/// read file and build for fill data in header. no file dictionary is created.
 /// Read only information that is displayed on the UI or is helpful when reading information for previewing.
 /// </summary>
 /// <returns> return true if all line is correctly saved </returns>
@@ -115,15 +16,14 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 	}
 
 	// declare instant variable for parse
-	bool isHeader = true;
+	bool hasRandom = false;
 	uint16_t wavCnt = 0, measureCnt = 0;
-	uint8_t rndCnt = 0;
 	char prevMeasure[4] = {0,};
 	bool b5key = true, bSingle = true;
 	int player = 1;
 
-	std::string line;
-	line.reserve(1024);
+	bool isHeader = true;
+	std::string line; line.reserve(1024);
 	while (in.GetLine(line, true)) {
 		const char* pLine = line.data();
 		// check incorrect line
@@ -160,7 +60,7 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 			if (length > 7 && *(pLine + 5) == ':') {
 				// check measure number
 				if (!Utility::StartsWith(prevMeasure, pLine)) {
-					uint16_t measure = Utility::parseInt(pLine, 3);
+					uint16_t measure = Utility::parseInt(pLine);
 					if (measureCnt < measure) {
 						measureCnt = measure;
 					}
@@ -176,20 +76,20 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 					*(pLine + 3) == (bSingle ? '1' : '2')) {
 					b5key = false;
 				}
-			} else if (Utility::StartsWith(pLine, "RANDOM")) {
-				++rndCnt;
+			} else if (!hasRandom && Utility::StartsWith(pLine, "RANDOM")) {
+				hasRandom = true;
 			}
 		}
 	}
 
+	data->mHasRandom = hasRandom;
 	data->mWavCount = wavCnt;
-	data->mRndCount = rndCnt;
-	data->mMeasureCount = measureCnt;
+	data->mMeasureCount = measureCnt + 1;
 
 	// set key type
 	data->mKeyType = player == 2 ? (b5key ? KeyType::COUPLE_5 : KeyType::COUPLE_7) :
-		bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
-		(b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
+						 bSingle ? (b5key ? KeyType::SINGLE_5 : KeyType::SINGLE_7) :
+								   (b5key ? KeyType::DOUBLE_5 : KeyType::DOUBLE_7);
 
 	// set encoding type
 	EncodingType type = in.GetEncodeType();
@@ -207,28 +107,12 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 /// <param name="bPreview"> Read only information for previewing </param>
 /// <returns> return true if all line is correctly saved </returns>
 bool BMSDecryptor::Build(bool bPreview) {
-	if (mListRaw.size() == 0) {
-		TRACE("Bms file is empty.");
-		return false;
-	}
-
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.
 	clock_t s = clock();
-	bool isHeader = true;
-	for (std::string& line : mListRaw) {
-		// check incorrect line
-		if (line.empty() || line[0] != '#') {
-			continue;
-		}
-
-		// separate header line and body line
-		if (isHeader && line[1] == '0') {	// '0' means that measure 000 is start
-			isHeader = false;
-		}
-
-		isHeader ? ParseHeader(Utility::Rtrim(line)) : 
-				   ParseBody(Utility::Rtrim(line));
+	if (!ParseToRaw(bPreview)) {
+		LOG("The file does not exist in this path : " + Utility::WideToUTF8(mData.mInfo->mFilePath));
+		return false;
 	}
 	LOG("raw object make time(ms) : " << clock() - s);
 
@@ -277,138 +161,171 @@ bool BMSDecryptor::Build(bool bPreview) {
 	return true;
 }
 
-/// <summary>
-/// parse <paramref name="line"/> for fill header data and store parsed line in appropriate variable
-/// </summary>
-void BMSDecryptor::ParseHeader(std::string&& line) noexcept {
-	//if (line.rfind("#PLAYER", 0) == 0 && line.size() > 8) {
-	//	mData.mPlayer = std::stoi(line.substr(8));
-	//} else if (line.rfind("#GENRE", 0) == 0 && line.size() > 7) {
-	//	mData.mGenre = line.substr(7);
-	//} else if (line.rfind("#TITLE", 0) == 0 && line.size() > 7) {
-	//	mData.mTitle = line.substr(7);
-	//} else if (line.rfind("#ARTIST", 0) == 0 && line.size() > 8) {
-	//	mData.mArtist = line.substr(8);
-	//} else if (line.rfind("#BPM", 0) == 0) {
-	//	if (line[4] == ' ' && line.size() > 5) {
-	//		mData.mBpm = mData.mMinBpm = mData.mMaxBpm = std::stoi(line.substr(5));
-	//	} else if (line.size() > 7) {	// #BPMXX
-	//		int key = std::stoi(line.substr(4, 2), nullptr, 36);
-	//		mDicBpm[key] = std::stof(line.substr(7));
-	//	}
-	//} else if (line.rfind("#PLAYLEVEL", 0) == 0 && line.size() > 11) {
-	//	mData.mLevel = std::stoi(line.substr(11));
-	//} else if (line.rfind("#RANK", 0) == 0 && line.size() > 6) {
-	//	mData.mRank = std::stoi(line.substr(6));
-	//} else if (line.rfind("#TOTAL", 0) == 0 && line.size() > 7) {
-	//	mData.mTotal = std::stoi(line.substr(7));
-	//} else if (line.rfind("#STAGEFILE", 0) == 0 && line.size() > 11) {
-	//	mData.mStageFile = line.substr(11);
-	//} else if (line.rfind("#BANNER", 0) == 0 && line.size() > 8) {
-	//	mData.mBannerFile = line.substr(8);
-	//} else if (line.rfind("#DIFFICULTY", 0) == 0 && line.size() > 12) {
-	//	mData.mDifficulty = std::stoi(line.substr(12));
-	//} else if ((line.rfind("#WAV", 0) == 0 || line.rfind("#BMP", 0) == 0) && line.size() > 7) {
-	//	int key = std::stoi(line.substr(4, 2), nullptr, 36);
-	//	line[1] == 'W' ? mData.mDicWav[key] = line.substr(7) : 
-	//					 mData.mDicBmp[key] = line.substr(7);
-	//	//TRACE("Store dictionary element : " + std::to_string(key) + ", " + line.substr(7));
-	//} else if (line.rfind("#STOP", 0) == 0 && line.size() > 8) {
-	//	int key = std::stoi(line.substr(5, 2), nullptr, 36);
-	//	mDicStop[key] = std::stoi(line.substr(8));
-	//} else if (line.rfind("#LNTYPE", 0) == 0 && line.size() > 8) {
-	//	LongnoteType val = static_cast<LongnoteType>(std::stoi(line.substr(8)));
-	//	if (val == LongnoteType::RDM_TYPE_1 || val == LongnoteType::MGQ_TYPE) {
-	//		mData.mLongNoteType = val;
-	//	}
-	//} else if (line.rfind("#LNOBJ", 0) == 0 && line.size() > 7) {
-	//	if (mEndNoteVal != 0) {
-	//		LOG("LNOBJ value is more than one value. : " << line);
-	//	}
-	//	mEndNoteVal = std::stoi(line.substr(7), nullptr, 36);
-	//	mData.mLongNoteType = LongnoteType::RDM_TYPE_2;
-	//} else {
-	//	TRACE("This line is not in the correct format : " << line);
-	//		return;
-	//}
-	//TRACE("This line is correct format : " << line)
-}
+bool BMSDecryptor::ParseToRaw(bool bPreview) noexcept {
+	BMSifstream in((mData.mInfo->mFilePath).data());
+	if (!in.IsOpen()) {
+		return false;
+	}
+	mData.mLongNoteType = LongnoteType::RDM_TYPE_1;
 
-/// <summary>
-/// parse <paramref name="line"/> for fill body data and store parsed line in appropriate variable
-/// </summary>
-void BMSDecryptor::ParseBody(std::string&& line) noexcept {
-	// example line -> #00116:0010F211
-	if (line.size() < 8 || line[6] != ':') {
-		TRACE("This data is not in the correct format : " << line);
-			return;
-	} else if (line.size() == 9 && line[7] == '0' && line[8] == '0') {
-		// unnecessary line. -> #xxxxx:00
-		return;
+	// declare instant variable for parse
+	bool hasRandom = mData.mInfo->mHasRandom;
+	uint8_t rndDepth = 0, ifDepth = 0;
+	bool ignoreLine = false;
+	std::stack<int> rndValue;
+	uint16_t measureNum = mData.mInfo->mMeasureCount;
+
+	// initialize
+	if (mListMeasureLength.size() < measureNum) {	// mListMeasureLength and mListObj are the same size list
+		mListMeasureLength.resize(measureNum);
+		mListObj.resize(measureNum);
 	}
 
-	int measure = std::stoi(line.substr(1, 3));
-	Channel channel = static_cast<Channel>(std::stoi(line.substr(4, 2), nullptr, 36));
-	if (channel > Channel::NOT_USED && channel < Channel::LANDMINE_START || channel > Channel::LANDMINE_END) {
-		LOG("This channel is not implemented (=truncate) : " << line);
-		return;
-	}
-
-	mEndMeasure = measure > mEndMeasure ? measure : mEndMeasure;
-
-	// create time signature dictionary for calculate beat
-	if (channel == Channel::MEASURE_LENGTH) {
-		std::string measureLen = line.substr(7);
-		std::string::size_type index = measureLen.find('.');
-		BeatFraction frac;
-		if (index == std::string::npos) {
-			mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen), 1));
-		} else {
-			mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen.erase(index, 1)), 
-															Utility::Pow(10, static_cast<int>(measureLen.size() - index - 1))));
+	bool isHeader = true;
+	std::string line; line.reserve(1024);
+	while (in.GetLine(line, true)) {
+		const char* pLine = line.data();
+		// check incorrect line
+		if (*pLine != '#') {
+			continue;
 		}
-		TRACE("Add TimeSignature : " << measure << ", length : " << mDicMeasureLength[measure].mNumerator << " / " << mDicMeasureLength[measure].mDenominator);
-		return;
-	}
+		++pLine;
+		// separate header line and body line
+		if (isHeader && *pLine == '0') {	// '0' means that measure 000 is start
+			isHeader = false;
+		}
 
-	// Separate each beat fragment into objects with information.
-	std::vector<Object>& objs = mDicObj[measure];
-	int item = static_cast<int>(line.substr(7).size()) / 2;
-	for (int i = 0; i < item; ++i) {
-		// convert value to base-36, if channel is CHANGE_BPM, convert value to hex
-		int val = std::stoi(line.substr(7 + i * 2, 2), nullptr, channel == Channel::CHANGE_BPM ? 16 : 36);
-		if (val == 0) {
+		size_t length = line.size() - 1;
+		// header phase
+		if (isHeader) {
+			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
+				mData.mDicWav[ParseValue(pLine + 3)] = std::string(pLine + 6);
+			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) != ' ' && length > 6) {	// #BPMXX
+				mDicBpm[ParseValue(pLine + 3)] = static_cast<float>(Utility::parseFloat(pLine + 6));
+			} else if (Utility::StartsWith(pLine, "STAGEFILE") && length > 10) {
+				mData.mStageFile = std::string(pLine + 10);
+			} else if (Utility::StartsWith(pLine, "BANNER") && length > 7) {
+				mData.mBannerFile = std::string(pLine + 7);
+			} else if (Utility::StartsWith(pLine, "STOP") && length > 7) {
+				mDicStop[ParseValue(pLine + 4)] = std::abs(Utility::parseInt(pLine + 7));
+			} else if (Utility::StartsWith(pLine, "LNTYPE") && length > 7) {
+				mData.mLongNoteType = static_cast<LongnoteType>(Utility::parseInt(pLine + 7));
+			} else if (Utility::StartsWith(pLine, "LNOBJ") && length > 6) {
+				mEndNoteVal = Utility::parseInt(pLine + 6, 36);
+				mData.mLongNoteType = LongnoteType::RDM_TYPE_2;
+			} else {
+				TRACE("This line is discarded : " << line);
+			}
 			continue;
 		}
 
-		if (channel == Channel::BGM) {
-			// add object to vector if this object has own sound file
-			if (mData.mDicWav.count(val) != 0) {
-				objs.emplace_back(val, measure, channel, i, item);
-			} else {
-				LOG("this object has no sound fild. measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
-			}
-		} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
-			// add object to time segment list
-			mListRawTiming.emplace_back(val, measure, channel, i, item);
-		} else {
-			// overwrite the value (erase and repush)
-			bool isChanged = false;
-			for (int j = static_cast<int>(objs.size() - 1); j >= 0; --j) {
-				Object& obj = objs[j];
-				// overwrite value. very, very rarely happen
-				if (obj.mChannel == channel && BeatFraction(i, item) == obj.mFraction) {
-					TRACE("object change, measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
-					obj.mValue = val;
-					isChanged = true;
-					break;
+		// body phase
+		if (hasRandom) {
+			// process random conditional statement
+			if (ignoreLine) {
+				if (Utility::StartsWith(pLine, "IF") && length > 3) {
+					++ifDepth;
+				} else if (Utility::StartsWith(pLine, "ENDIF")) {
+					if (ifDepth == rndDepth) {	// if non-ignored line
+						ignoreLine = false;
+					}
+					--ifDepth;
+				}
+				continue;
+			} else if (Utility::StartsWith(pLine, "RANDOM") && length > 7) {
+				rndValue.push(Utility::xorshf96() % Utility::parseInt(pLine + 7));
+				++rndDepth;
+				continue;
+			} else if (rndDepth > 0) {
+				if (Utility::StartsWith(pLine, "IF") && length > 3) {
+					if (rndValue.top() != Utility::parseInt(pLine + 3)) {
+						ignoreLine = true;
+					}
+					++ifDepth;
+					continue;
+				} else if (Utility::StartsWith(pLine, "ENDIF")) {
+					--ifDepth;
+					continue;
+				} else if (Utility::StartsWith(pLine, "ENDRANDOM")) {
+					--rndDepth;
+					continue;
 				}
 			}
-			if (!isChanged) {
-				objs.emplace_back(val, measure, channel, i, item);
+		}
+
+		// confirm the line to be discarded
+		if (length < 7 || *(pLine + 5) != ':') { // correct line -> 00116:0010F211
+			TRACE("This data is not in the correct format : " << line);
+			continue;
+		} else if (length == 8 && *(pLine + 6) == '0' && *(pLine + 7) == '0') {
+			// unnecessary line. -> xxxxx:00
+			continue;
+		}
+
+		uint16_t measure = (*pLine * 100) + (*(pLine + 1) * 10) + *(pLine + 2);
+		Channel channel = static_cast<Channel>(ParseValue(pLine + 3));
+		if (channel > Channel::NOT_USED && channel < Channel::LANDMINE_START || channel > Channel::LANDMINE_END) {
+			LOG("This channel is not implemented (=truncate) : " << line);
+			continue;
+		}
+
+		mEndMeasure = measure > mEndMeasure ? measure : mEndMeasure;
+
+		// create time signature dictionary for calculate beat
+		if (channel == Channel::MEASURE_LENGTH) {
+			std::string measureLen = line.substr(7);
+			std::string::size_type index = measureLen.find('.');
+			BeatFraction frac;
+			if (index == std::string::npos) {
+				mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen), 1));
+			} else {
+				mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen.erase(index, 1)),
+																Utility::Pow(10, static_cast<int>(measureLen.size() - index - 1))));
+			}
+			TRACE("Add TimeSignature : " << measure << ", length : " << mDicMeasureLength[measure].mNumerator << " / " << mDicMeasureLength[measure].mDenominator);
+			continue;
+		}
+
+		// Separate each beat fragment into objects with information.
+		std::vector<Object>& objs = mDicObj[measure];
+		int item = static_cast<int>(line.substr(7).size()) / 2;
+		for (int i = 0; i < item; ++i) {
+			// convert value to base-36, if channel is CHANGE_BPM, convert value to hex
+			int val = std::stoi(line.substr(7 + i * 2, 2), nullptr, channel == Channel::CHANGE_BPM ? 16 : 36);
+			if (val == 0) {
+				continue;
+			}
+
+			if (channel == Channel::BGM) {
+				// add object to vector if this object has own sound file
+				if (mData.mDicWav.count(val) != 0) {
+					objs.emplace_back(val, measure, channel, i, item);
+				} else {
+					LOG("this object has no sound fild. measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
+				}
+			} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
+				// add object to time segment list
+				mListRawTiming.emplace_back(val, measure, channel, i, item);
+			} else {
+				// overwrite the value (erase and repush)
+				bool isChanged = false;
+				for (int j = static_cast<int>(objs.size() - 1); j >= 0; --j) {
+					Object& obj = objs[j];
+					// overwrite value. very, very rarely happen
+					if (obj.mChannel == channel && BeatFraction(i, item) == obj.mFraction) {
+						TRACE("object change, measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
+						obj.mValue = val;
+						isChanged = true;
+						break;
+					}
+				}
+				if (!isChanged) {
+					objs.emplace_back(val, measure, channel, i, item);
+				}
 			}
 		}
 	}
+	return true;
 }
 
 /// <summary>

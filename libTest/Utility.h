@@ -6,6 +6,7 @@
 #include <iostream>
 #include <ctime>
 #include <fstream>
+#include <chrono>
 
 #include "Unicode.h"
 
@@ -76,7 +77,7 @@ namespace Utility {
 
 	// strtoi source code : https://github.com/gcc-mirror/gcc/blob/master/libiberty/strtol.c
 	/// <summary> Simple string parse to integer with no exception </summary>
-	constexpr int parseInt(const char* p, const int length = 0, const int radix = 10) noexcept {
+	constexpr int parseInt(const char* p, const int radix = 10) noexcept {
 		while (*p == ' ') {
 			++p;
 		}
@@ -88,11 +89,9 @@ namespace Utility {
 			++p;
 		}
 
-		bool hasLimit = length != 0;
 		char c = *p;
-		const char* pstart = p;
 		int acc = 0;
-		while (hasLimit ? (p - pstart) < length : *p) {
+		while (c) {
 			if (*p >= '0' && *p <= '9') {
 				c -= '0';
 			} else if (*p >= 'A' && *p <= 'Z') {
@@ -154,35 +153,32 @@ namespace Utility {
 	}
 
 	/// <summary> Find the greatest common divisor recursively (Euclid's Method) </summary>
-	constexpr int GCD(int m, int n) {
+	constexpr int GCD(const int m, const int n) {
 		return n == 0 ? m : GCD(n, m % n);
 	}
 
 	/// <summary> Find the least common multiple </summary>
-	constexpr int LCM(int m, int n) {
+	constexpr int LCM(const int m, const int n) {
 		return (m * n) / GCD(m, n);
 	}
 
-	/// <summary>
-	/// read file at <c>path</c> and stores it in <paramref name="result"/> vector
-	/// </summary>
-	inline bool ReadText(const std::string& path, std::vector<std::string>& result) {
-		std::ifstream file(UTF8ToWide(path));
-		if (!file.is_open()) {
-			TRACE("The file does not exist in this path : " + path);
-			return false;
-		}
+	// reference : https://stackoverflow.com/questions/1640258/need-a-fast-random-generator-for-c
+	//			   https://en.wikipedia.org/wiki/Xorshift
+	static unsigned long seed = std::chrono::steady_clock::now().time_since_epoch().count();
+	static unsigned long y = 362436069, z = 521288629;
+	/// <summary> Random number generator </summary>
+	inline unsigned long xorshf96() {          //period 2^96-1
+		unsigned long t;
+		seed ^= seed << 16;
+		seed ^= seed >> 5;
+		seed ^= seed << 1;
+		t = seed;
+		seed = y;
+		y = z;
+		z = t ^ seed ^ y;
 
-		std::string line;
-		while (std::getline(file, line)) {
-			result.emplace_back(line);
-		}
-
-		file.close();
-		return true;
+		return z;
 	}
-
-	//inline bool ReadBinary(const std::string& path, std::string& result) {}
 
 	inline bool CompareDoubleSimple(double x, double y, double absTolerance = (1.0e-8)) {
 		return fabs(x - y) <= absTolerance;
@@ -210,6 +206,17 @@ namespace Utility {
 
 		return (diff > 0) ? 1 : -1;
 	}
+
+	// reference : http://veblush.blogspot.com/2012/10/map-vs-unorderedmap-for-string-key.html
+	/// <summary> 
+	/// A structure defined in unordered_map to use the key value as the hash value
+	/// Use it only when the lower b bits of the hash value are evenly distributed
+	/// </summary>
+	struct Bypass {
+		size_t operator()(int v) const {
+			return static_cast<size_t>(v);
+		}
+	};
 
 	/// <summary> Data structures for fraction representation </summary>
 	struct Fraction {

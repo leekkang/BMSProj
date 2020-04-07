@@ -4,6 +4,8 @@
 #include "BMSifstream.h"
 
 #include <algorithm>		// std::min, max, sort
+#include <stack>
+#include <random>
 
 namespace bms {
 	/// <summary>
@@ -14,20 +16,19 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSDecryptor(BMSData& data) : mData(data) {};
-		~BMSDecryptor() = default;
+		BMSDecryptor(BMSData& data) : mData(data) {
+			mListStop = new int[MAX_INDEX_LENGTH];
+			mListBpm = new float[MAX_INDEX_LENGTH];
+		};
+		~BMSDecryptor() {
+			delete[] mListStop;
+			delete[] mListBpm;
+		}
 		DISALLOW_COPY_AND_ASSIGN(BMSDecryptor)
 		BMSDecryptor(BMSDecryptor&& others) noexcept = default;
 		BMSDecryptor& operator=(BMSDecryptor&&) noexcept = default;
 
 		// ----- user access function -----
-
-		/// <summary>
-		/// read file and build for fill data in header. no file dictionary is created.
-		/// Read only information that is displayed on the UI or is helpful when reading information for previewing.
-		/// </summary>
-		/// <returns> return <see cref="bms::BMSPreviewData"/> object if all line is correctly saved </returns>
-		BMSInfoData BuildInfoData(const wchar_t* path);
 
 		/// <summary>
 		/// read file and build for fill data in header. no file dictionary is created.
@@ -43,13 +44,10 @@ namespace bms {
 		/// <returns> return true if all line is correctly saved </returns>
 		bool Build(bool bPreview);
 		/// <summary>
-		/// parse <paramref name="line"/> for fill header data and store parsed line in appropriate variable
+		/// parse <paramref name="line"/> for fill header and body data and store parsed line 
+		/// in appropriate variable and temporary data structure
 		/// </summary>
-		void ParseHeader(std::string&& line) noexcept;
-		/// <summary>
-		/// parse <paramref name="line"/> for fill body data and store parsed line in temporary data structure
-		/// </summary>
-		void ParseBody(std::string&& line) noexcept;
+		bool ParseToRaw(bool bPreview) noexcept;
 		/// <summary>
 		/// make time segment list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::TimeSegment"/> objects
 		/// </summary>
@@ -143,20 +141,20 @@ namespace bms {
 		BMSData& mData;
 
 		/// <summary> The number of total measure of current bms data </summary>
-		int mEndMeasure;
+		uint16_t mEndMeasure;
 		/// <summary> 
 		/// if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, 
 		/// this value direct wav file key in <see cref="BMSData::mDicWav"/>. 
 		/// </summary>
-		int mEndNoteVal;
+		uint16_t mEndNoteVal;
 
-		///<summary> a list of raw file data not yet parsed </summary>
-		std::vector<std::string> mListRaw;
 		///<summary> a list of temporary time data objects </summary>
 		std::vector<Object> mListRawTiming;
 
 		///<summary> a map of data objects (smallest unit) </summary>
 		std::unordered_map<int, std::vector<Object>> mDicObj;
+		///<summary> a list of data objects (smallest unit), the index is measure number </summary>
+		std::vector<std::vector<Object>> mListObj;
 
 		///<summary> pair of STOP command number and data </summary>
 		std::unordered_map<int, int> mDicStop;
@@ -164,5 +162,34 @@ namespace bms {
 		std::unordered_map<int, float> mDicBpm;
 		///<summary> pair of measure number and measure length </summary>
 		std::unordered_map<int, BeatFraction> mDicMeasureLength;
+
+		///<summary> a list of STOP command data, the index is STOP command number </summary>
+		int* mListStop;
+		///<summary> a list of BPM command data, the index is BPM command number </summary>
+		float* mListBpm;
+		///<summary> a list of measure length, the index is measure number </summary>
+		std::vector<BeatFraction> mListMeasureLength;
+
+		/// <summary> parse function to change the value between "00" and "zz" to integer base 36 with no error check </summary>
+		inline uint16_t ParseValue(const char* val) noexcept {
+			bool bFirstLoop = false;
+			char c = *val;
+			uint16_t acc = 0;
+			do {
+				if (*val >= '0' && *val <= '9') {
+					c -= '0';
+				} else if (*val >= 'A' && *val <= 'Z') {
+					c -= 'A' - 10;
+				} else if (*val >= 'a' && *val <= 'z') {
+					c -= 'a' - 10;
+				} else {
+					break;
+				}
+				acc = acc * 36 + c;
+				c = *++val;
+			} while (bFirstLoop != bFirstLoop);
+
+			return acc;
+		}
 	};
 }

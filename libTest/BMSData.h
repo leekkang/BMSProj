@@ -10,7 +10,7 @@ namespace bms {
 	/// contains sorting information and minimal information to help you read the file.
 	/// </summary>
 	struct BMSInfoData {
-		std::wstring mFileName;
+		std::wstring mFilePath;
 		EncodingType mFileType;
 
 		KeyType mKeyType;				// determine how many keys the file uses.
@@ -27,19 +27,17 @@ namespace bms {
 		std::string mTitle;
 		std::string mArtist;
 		std::string mGenre;
-		std::string mBannerFile;		// banner image file name of inform music or team
 
 		// -- additional BMSInfo (for construct preview data)
 
+		bool mHasRandom;				// total #RANDOM line count
 		uint16_t mWavCount;				// total wav file count
 		uint16_t mMeasureCount;			// total measure count
-		uint8_t mRndCount;				// total #RANDOM line count
 
 		// ----- constructor, operator overloading -----
 
-		BMSInfoData() = default;
-		BMSInfoData(const std::wstring& name) : mFileName(name), mLevel(0), mDifficulty(0),
-											    mNoteCount(0), mTotalTime(0), mMinBpm(0), mMaxBpm(0) {
+		BMSInfoData() : mLevel(0), mDifficulty(0),
+						mNoteCount(0), mTotalTime(0), mMinBpm(0), mMaxBpm(0) {
 			// Do not use it if class contains pointer variables.
 			// I don't know why below link throw an error that says an access violation.
 			// reference : https://www.sysnet.pe.kr/2/0/4
@@ -55,7 +53,7 @@ namespace bms {
 		// ----- user access function -----
 
 		friend std::ostream& operator<<(std::ostream& os, const BMSInfoData& s) {
-			WriteToBinary(os, s.mFileName);
+			WriteToBinary(os, s.mFilePath);
 			WriteToBinary(os, static_cast<uint8_t>(s.mFileType));
 			WriteToBinary(os, static_cast<uint8_t>(s.mKeyType));
 			WriteToBinary(os, s.mLevel);
@@ -70,12 +68,12 @@ namespace bms {
 			WriteToBinary(os, s.mGenre);
 			WriteToBinary(os, s.mWavCount);
 			WriteToBinary(os, s.mMeasureCount);
-			WriteToBinary(os, s.mRndCount);
+			WriteToBinary(os, s.mHasRandom);
 			
 			return os;
 		}
 		friend std::istream& operator>>(std::istream& is, BMSInfoData& s) {
-			s.mFileName = ReadFromBinary<std::wstring>(is);
+			s.mFilePath = ReadFromBinary<std::wstring>(is);
 			s.mFileType = static_cast<EncodingType>(ReadFromBinary<uint8_t>(is));
 			s.mKeyType = static_cast<KeyType>(ReadFromBinary<uint8_t>(is));
 			s.mLevel = ReadFromBinary<uint8_t>(is);
@@ -90,7 +88,7 @@ namespace bms {
 			s.mGenre = ReadFromBinary<std::string>(is);
 			s.mWavCount = ReadFromBinary<uint16_t>(is);
 			s.mMeasureCount = ReadFromBinary<uint16_t>(is);
-			s.mRndCount = ReadFromBinary<uint8_t>(is);
+			s.mHasRandom = ReadFromBinary<bool>(is);
 
 			return is;
 		}
@@ -105,10 +103,13 @@ namespace bms {
 		// ----- constructor, operator overloading -----
 
 		BMSData() : mInfo(nullptr), mReady(false), mRank(2), mTotal(200), mLongNoteType(LongnoteType::RDM_TYPE_1) {
-			mDicWav.reserve(MAX_INDEX_LENGTH);
-			mDicBmp.reserve(MAX_INDEX_LENGTH);
+			mListWavName = new std::string[MAX_INDEX_LENGTH];
+			mListBmpName = new std::string[MAX_INDEX_LENGTH];
 		}
-		~BMSData() = default;
+		~BMSData() {
+			delete[] mListWavName;
+			delete[] mListBmpName;
+		}
 		DISALLOW_COPY_AND_ASSIGN(BMSData)
 		//BMSData(const BMSData&) = default;
 		//BMSData& operator=(const BMSData&) = default;
@@ -117,6 +118,21 @@ namespace bms {
 
 		// ----- user access function -----
 
+		void Reset(BMSInfoData* const& info, bool bPreview) {
+			mReady = false;
+			mInfo = info;
+			for (uint16_t i = 0; i < MAX_INDEX_LENGTH; ++i) {
+				mListWavName[i].clear();
+				if (!bPreview) {
+					mListBmpName[i].clear();
+				}
+			}
+
+			uint16_t measureCnt = info->mMeasureCount;
+			if (mListCumulativeBeat.size() < measureCnt) {
+				mListCumulativeBeat.resize(measureCnt);
+			}
+		}
 
 		BMSInfoData* mInfo;
 
@@ -130,9 +146,14 @@ namespace bms {
 		int mLongCount;				// the total number of long note
 
 		std::string mStageFile;		// loading image file name when music ready
+		std::string mBannerFile;	// banner image file name of inform music or team
 
+		///<summary> a list of wav file name, the index is wav file mapping value </summary>
+		std::string* mListWavName;
+		///<summary> a list of bmp or video file name, the index is bmp file mapping value </summary>
+		std::string* mListBmpName;
 		///<summary> key : wav file mapping value, value : wav file name </summary>
-		std::unordered_map<int, std::string> mDicWav;
+		std::unordered_map<int, std::string, Utility::Bypass> mDicWav;
 		///<summary> key : bmp file mapping value, value : bmp or video file name </summary>
 		std::unordered_map<int, std::string> mDicBmp;
 
