@@ -97,6 +97,7 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 		type = GetEncodeType(data->mGenre + data->mTitle + data->mArtist);
 	}
 	data->mFileType = type;
+	data->mFilePath = std::wstring(path);
 
 	return true;
 }
@@ -110,7 +111,8 @@ bool BMSDecryptor::Build(bool bPreview) {
 	// 1. parse raw data line to Object list
 	//    At this stage, the header information is completely organized.
 	clock_t s = clock();
-	if (!ParseToRaw(bPreview)) {
+	// TODO : separate preview and game play
+	if (!ParseToPreviewRaw()) {
 		LOG("The file does not exist in this path : " + Utility::WideToUTF8(mData.mInfo->mFilePath));
 		return false;
 	}
@@ -120,27 +122,18 @@ bool BMSDecryptor::Build(bool bPreview) {
 	//	  with the number of measures found when body parsing.
 	s = clock();
 	BeatFraction frac;
-	for (int i = 0; i <= mEndMeasure; ++i) {
-		frac += GetBeatInMeasure(i);
-		mData.mListCumulativeBeat.emplace_back(frac.mNumerator, frac.mDenominator);
+	for (int i = 0; i < mMeasureCount; ++i) {
+		frac += mListBeatInMeasure[i];
+		mData.mListCumulativeBeat[i].Set(frac.mNumerator, frac.mDenominator);
 	}
 	LOG("cumulative beat make time(ms) : " << clock() - s)
-	
-	// 3. sort bpm, time-related object list for use as raw TimeSegment struct list
-	s = clock();
-	std::sort(mListRawTiming.begin(), mListRawTiming.end(), [](Object lhs, Object rhs) {
-		return lhs.mMeasure != rhs.mMeasure ? lhs.mMeasure < rhs.mMeasure :
-			   lhs.mFraction != rhs.mFraction ? lhs.mFraction < rhs.mFraction :
-												lhs.mChannel < rhs.mChannel;
-	});
-	LOG("raw time segment sort time(ms) : " << clock() - s)
 
-	// 4. Create a list that stores the change time point. include time, beats, bpm
+	// 3. Create a list that stores the change time point. include time, beats, bpm
 	s = clock();
 	MakeTimeSegment();
 	LOG("time segment make time(ms) : " << clock() - s)
 
-	// 5. Read a list of objects and create a list that stores information such as time and beats of the note.
+	// 4. Read a list of objects and create a list that stores information such as time and beats of the note.
 	s = clock();
 	MakeNoteList();
 	LOG("note list make time(ms) : " << clock() - s)
@@ -161,7 +154,7 @@ bool BMSDecryptor::Build(bool bPreview) {
 	return true;
 }
 
-bool BMSDecryptor::ParseToRaw(bool bPreview) noexcept {
+bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 	BMSifstream in((mData.mInfo->mFilePath).data());
 	if (!in.IsOpen()) {
 		return false;
@@ -170,16 +163,55 @@ bool BMSDecryptor::ParseToRaw(bool bPreview) noexcept {
 
 	// declare instant variable for parse
 	bool hasRandom = mData.mInfo->mHasRandom;
-	uint8_t rndDepth = 0, ifDepth = 0;
 	bool ignoreLine = false;
+	uint8_t rndDepth = 0, ifDepth = 0;
 	std::stack<int> rndValue;
-	uint16_t measureNum = mData.mInfo->mMeasureCount;
+
+	mMeasureCount = mData.mInfo->mMeasureCount;
+	const char* extension = mData.mInfo->mSoundExtension.data();
 
 	// initialize
-	if (mListMeasureLength.size() < measureNum) {	// mListMeasureLength and mListObj are the same size list
-		mListMeasureLength.resize(measureNum);
-		mListObj.resize(measureNum);
+	memset(mListStop, 0, sizeof(int) * MAX_INDEX_LENGTH);
+	memset(mListBpm, 0, sizeof(float) * MAX_INDEX_LENGTH);
+	if (mListBeatInMeasure.size() < mMeasureCount) {	// mListMeasureLength and mListObj are the same size list
+		mListBeatInMeasure.resize(mMeasureCount);
+		mListObj.resize(mMeasureCount);
 	}
+	for (uint16_t i = 0; i < mMeasureCount; ++i) {
+		mListBeatInMeasure[i].Set(4, 1);
+		mListObj[i].clear();
+	}
+	mListRawTiming.clear();
+	mData.mListTimeSeg.clear();
+	mData.mListBgm.clear();
+	mData.mListPlayerNote.clear();
+	mRawTimingCount = 0;
+	mBgmCount = 0;
+	mNoteCount = 0;
+
+	// lambda function to get fraction from string
+	auto GetFraction = [](const char* p) {
+		int numerator = 0, denominator = 1;
+		char c = *p;
+		bool bFraction = false;
+		while (c) {
+			if (c >= '0' && c <= '9') {
+				numerator = numerator * 10 + c;
+				if (bFraction) {
+					denominator *= 10;
+				}
+			} else if (c == '.') {
+				bFraction = true;
+			}
+			c = *++p;
+		}
+		if (bFraction) {
+			int gcd = Utility::GCD(numerator, denominator);
+			numerator /= gcd;
+			denominator /= gcd;
+		}
+		return BeatFraction(numerator, denominator);
+	};
 
 	bool isHeader = true;
 	std::string line; line.reserve(1024);
@@ -199,15 +231,17 @@ bool BMSDecryptor::ParseToRaw(bool bPreview) noexcept {
 		// header phase
 		if (isHeader) {
 			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
-				mData.mDicWav[ParseValue(pLine + 3)] = std::string(pLine + 6);
+				char* sPoint = &(line[line.size() - 3]);
+				strncpy_s(sPoint, 4, extension, 3);
+				mData.mListWavName[ParseValue(pLine + 3, 36)] = std::string(pLine + 6);
 			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) != ' ' && length > 6) {	// #BPMXX
-				mDicBpm[ParseValue(pLine + 3)] = static_cast<float>(Utility::parseFloat(pLine + 6));
+				mListBpm[ParseValue(pLine + 3, 36)] = static_cast<float>(Utility::parseFloat(pLine + 6));
 			} else if (Utility::StartsWith(pLine, "STAGEFILE") && length > 10) {
 				mData.mStageFile = std::string(pLine + 10);
 			} else if (Utility::StartsWith(pLine, "BANNER") && length > 7) {
 				mData.mBannerFile = std::string(pLine + 7);
 			} else if (Utility::StartsWith(pLine, "STOP") && length > 7) {
-				mDicStop[ParseValue(pLine + 4)] = std::abs(Utility::parseInt(pLine + 7));
+				mListStop[ParseValue(pLine + 4, 36)] = std::abs(Utility::parseInt(pLine + 7));
 			} else if (Utility::StartsWith(pLine, "LNTYPE") && length > 7) {
 				mData.mLongNoteType = static_cast<LongnoteType>(Utility::parseInt(pLine + 7));
 			} else if (Utility::StartsWith(pLine, "LNOBJ") && length > 6) {
@@ -260,71 +294,63 @@ bool BMSDecryptor::ParseToRaw(bool bPreview) noexcept {
 		} else if (length == 8 && *(pLine + 6) == '0' && *(pLine + 7) == '0') {
 			// unnecessary line. -> xxxxx:00
 			continue;
+		} else if (length > 0xFFFF) {
+			TRACE("This data length is too long : " << line);
+			continue;
 		}
-
-		uint16_t measure = (*pLine * 100) + (*(pLine + 1) * 10) + *(pLine + 2);
-		Channel channel = static_cast<Channel>(ParseValue(pLine + 3));
+		Channel channel = static_cast<Channel>(ParseValue(pLine + 3, 36));
 		if (channel > Channel::NOT_USED && channel < Channel::LANDMINE_START || channel > Channel::LANDMINE_END) {
 			LOG("This channel is not implemented (=truncate) : " << line);
 			continue;
 		}
 
-		mEndMeasure = measure > mEndMeasure ? measure : mEndMeasure;
-
 		// create time signature dictionary for calculate beat
+		uint16_t measure = (*pLine * 100) + (*(pLine + 1) * 10) + *(pLine + 2);
 		if (channel == Channel::MEASURE_LENGTH) {
-			std::string measureLen = line.substr(7);
-			std::string::size_type index = measureLen.find('.');
-			BeatFraction frac;
-			if (index == std::string::npos) {
-				mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen), 1));
-			} else {
-				mDicMeasureLength.emplace(measure, BeatFraction(std::stoi(measureLen.erase(index, 1)),
-																Utility::Pow(10, static_cast<int>(measureLen.size() - index - 1))));
-			}
-			TRACE("Add TimeSignature : " << measure << ", length : " << mDicMeasureLength[measure].mNumerator << " / " << mDicMeasureLength[measure].mDenominator);
+			mListBeatInMeasure[measure] = GetFraction(pLine + 6);
+			TRACE("Add TimeSignature : " << measure << ", length : " << mListBeatInMeasure[measure].mNumerator << " / " << mListBeatInMeasure[measure].mDenominator);
+			continue;
+		}
+		// discard invalid value except MEASURE_LENGTH channel
+		if (length % 2 != 0) {
+			TRACE("This data length is not a multiple of 2 : " << line);
+			continue;
+		}
+		// ignore BGA related data
+		if (channel == Channel::BGA_BASE || channel == Channel::BGA_POOR || channel == Channel::BGA_LAYER) {
 			continue;
 		}
 
 		// Separate each beat fragment into objects with information.
-		std::vector<Object>& objs = mDicObj[measure];
-		int item = static_cast<int>(line.substr(7).size()) / 2;
+		ListPool<Object>& objs = mListObj[measure];
+		int item = static_cast<int>(length - 6) / 2;
 		for (int i = 0; i < item; ++i) {
 			// convert value to base-36, if channel is CHANGE_BPM, convert value to hex
-			int val = std::stoi(line.substr(7 + i * 2, 2), nullptr, channel == Channel::CHANGE_BPM ? 16 : 36);
+			uint16_t val = ParseValue(pLine + 6 + i * 2, channel == Channel::CHANGE_BPM ? 16 : 36);
 			if (val == 0) {
 				continue;
 			}
 
 			if (channel == Channel::BGM) {
 				// add object to vector if this object has own sound file
-				if (mData.mDicWav.count(val) != 0) {
-					objs.emplace_back(val, measure, channel, i, item);
-				} else {
+				if (mData.mListWavName[val] == "") {
 					LOG("this object has no sound fild. measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
+				} else {
+					objs.push(Object(val, measure, channel, i, item));
+					++mBgmCount;
 				}
 			} else if (channel == Channel::CHANGE_BPM || channel == Channel::CHANGE_BPM_BY_KEY || channel == Channel::STOP_BY_KEY) {
 				// add object to time segment list
-				mListRawTiming.emplace_back(val, measure, channel, i, item);
+				mListRawTiming.push(Object(val, measure, channel, i, item));
+				++mRawTimingCount;
 			} else {
-				// overwrite the value (erase and repush)
-				bool isChanged = false;
-				for (int j = static_cast<int>(objs.size() - 1); j >= 0; --j) {
-					Object& obj = objs[j];
-					// overwrite value. very, very rarely happen
-					if (obj.mChannel == channel && BeatFraction(i, item) == obj.mFraction) {
-						TRACE("object change, measure : " << measure << ", fraction : " << i << " / " << item << ", val : " << val);
-						obj.mValue = val;
-						isChanged = true;
-						break;
-					}
-				}
-				if (!isChanged) {
-					objs.emplace_back(val, measure, channel, i, item);
-				}
+				// Override checking is done in another function.
+				objs.push(Object(val, measure, channel, i, item));
+				++mNoteCount;
 			}
 		}
 	}
+
 	return true;
 }
 
@@ -335,10 +361,18 @@ void BMSDecryptor::MakeTimeSegment() {
 	long long curTime = 0;
 	double curBpm = mData.mInfo->mBpm;
 	BeatFraction prevBeat;
+	mData.mListTimeSeg.resize(mRawTimingCount);
 
 	// push initial time segment
-	mData.mListTimeSeg.emplace_back(0, curBpm, 0, 1);
+	mData.mListTimeSeg.push(TimeSegment(0, curBpm, 0, 1));
 	TRACE("TimeSegment measure : 0, beat : 0, second : 0, bpm : " + std::to_string(curBpm));
+
+	// sort bpm, time-related object list for use as raw TimeSegment struct list
+	mListRawTiming.Sort([](Object lhs, Object rhs) {
+		return lhs.mMeasure != rhs.mMeasure ? lhs.mMeasure < rhs.mMeasure :
+			 lhs.mFraction != rhs.mFraction ? lhs.mFraction < rhs.mFraction :
+											  lhs.mChannel < rhs.mChannel;
+	});
 
 	int count = static_cast<int>(mListRawTiming.size());
 	for (int i = 0; i < count; ++i) {
@@ -352,23 +386,23 @@ void BMSDecryptor::MakeTimeSegment() {
 		curTime += delta;
 		//curTime += ((BeatFraction)(curBeatSum - prevBeat)).GetTime(curBpm);
 
-		if (obj.mChannel == Channel::STOP_BY_KEY && mDicStop.count(obj.mValue) != 0) {
+		if (obj.mChannel == Channel::STOP_BY_KEY && mListStop[obj.mValue] != 0) {
 			// STOP value is the time value of 1/192 of a whole note in 4/4 meter be the unit 1
 			// 48 == 1 beat
-			mData.mListTimeSeg.emplace_back(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mListTimeSeg.push(TimeSegment(curTime, 0, curBeatSum.mNumerator, curBeatSum.mDenominator));
 			TRACE("TimeSegment measure : " << curMeasure << ", beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", delta : " << delta << ", bpm : " << 0);
 			// value / 48 = beats to stop, time = beat * (60/bpm), 
 			// --> stop time = (value * 5) / (bpm * 4)
 			TRACE("measure : " << curMeasure << ", obj * value * 5000000ll = " << mDicStop[obj.mValue] * 5000000ll << ", curbpm * 4 = " << curBpm * 4 << ", result = " << (mDicStop[obj.mValue] * 5000000ll) / (curBpm * 4));
-			delta = static_cast<long long>(std::round((mDicStop[obj.mValue] * 5000000ll) / (curBpm * 4)));
+			delta = static_cast<long long>(std::round((mListStop[obj.mValue] * 5000000ll) / (curBpm * 4)));
 			curTime += delta;
-			mData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mListTimeSeg.push(TimeSegment(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator));
 		} else if (obj.mChannel == Channel::CHANGE_BPM ||
-				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mDicBpm.count(obj.mValue) != 0)) {
-			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mDicBpm[obj.mValue];
+				  (obj.mChannel == Channel::CHANGE_BPM_BY_KEY && mListBpm[obj.mValue] != 0)) {
+			curBpm = obj.mChannel == Channel::CHANGE_BPM ? obj.mValue : mListBpm[obj.mValue];
 			mData.mInfo->mMinBpm = std::min(mData.mInfo->mMinBpm, curBpm);
 			mData.mInfo->mMaxBpm = std::max(mData.mInfo->mMaxBpm, curBpm);
-			mData.mListTimeSeg.emplace_back(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator);
+			mData.mListTimeSeg.push(TimeSegment(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator));
 		}
 
 		prevBeat = curBeatSum;
@@ -380,11 +414,13 @@ void BMSDecryptor::MakeTimeSegment() {
 /// make note list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::Note"/> objects
 /// </summary>
 void BMSDecryptor::MakeNoteList() {
-	clock_t s = clock();
+	mData.mListBgm.resize(mBgmCount);
+	mData.mListPlayerNote.resize(mNoteCount);
+
 	// true if long note type is RDM type 2
 	bool isRDM2 = mData.mLongNoteType == LongnoteType::RDM_TYPE_2;
 	// only work of RDM type 2, true if LNOBJ value is one of the indexes of WAV
-	bool isExistEndWav = mEndNoteVal != 0 && mData.mDicWav.count(mEndNoteVal) != 0;
+	bool isExistEndWav = mEndNoteVal != 0 && mData.mListWavName[mEndNoteVal] != "";
 	// save each column's last note index. This value is used to determine if this object is a long note.
 	int lastIndex[9] = {0};
 
@@ -394,24 +430,24 @@ void BMSDecryptor::MakeNoteList() {
 		lastIndex[column] = 0;
 		mData.mNoteCount--; mData.mLongCount++;
 	};
-	for (int i = 0; i <= mEndMeasure; ++i) {
+	for (int i = 0; i < mMeasureCount; ++i) {
 		// check if this measure has information
-		if (mDicObj.count(i) == 0) {
+		if (mListObj[i].size() == 0) {
 			continue;
 		}
 
-		std::vector<Object>& objs = mDicObj[i];
+		ListPool<Object>& objs = mListObj[i];
 		// 1) sort all object list by ascending of beats
-		std::sort(objs.begin(), objs.end(), [](Object lhs, Object rhs) ->bool { return lhs.mFraction < rhs.mFraction; });
+		objs.Sort([](Object lhs, Object rhs) ->bool { return lhs.mFraction < rhs.mFraction; });
 
 		// 2) Create two lists: a note list that plays sounds and an object list that plays BGA.
 		// TODO : refactor to avoid using GetTimeUsingBeat() functions
-		for (const Object& obj : objs) {
+		for (unsigned int j = 0; j < objs.size(); ++j) {
+			Object& obj = objs[j];
 			BeatFraction bf = GetBeats(i, obj.mFraction);
 			// BG Note list
-			if (obj.mChannel < Channel::KEY_1P_1) {
-				std::vector<Note>& container = obj.mChannel == Channel::BGM ? mData.mListBgm : mData.mListBga;
-				container.emplace_back(obj.mValue, obj.mChannel, GetTimeUsingBeat(bf), bf);
+			if (obj.mChannel == Channel::BGM) {
+				mData.mListBgm.push(Note(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf));
 				continue;
 			}
 
@@ -420,16 +456,19 @@ void BMSDecryptor::MakeNoteList() {
 			int column = intCh % 36 - 1;
 			bool bLongNote = obj.mChannel >= Channel::KEY_LONG_START && obj.mChannel < Channel::LANDMINE_START;
 			bool bInvisibleNote = obj.mChannel >= Channel::KEY_INVISIBLE_START && !bLongNote;
+
+			// remove invisible note with no sound data
+			if (bInvisibleNote) {
+				if (mData.mListWavName[obj.mValue] == "") {
+					continue;
+				}
+			}
+
 			// note : RDM type2 shares the long note channel with the normal notes.
 			if (isRDM2) {
 				// It doesn't make sense that RDM type 2 has a long note channel. invalid value -> remove
 				if (bLongNote) {
 					continue;
-				} else if (bInvisibleNote) {
-					// remove invisible note with no sound data
-					if (mData.mDicWav.count(obj.mValue) == 0) {
-						continue;
-					}
 				}
 				// check only visible note. invisible note doesn't have long note.
 				if (obj.mChannel < Channel::KEY_INVISIBLE_START) {
@@ -437,7 +476,7 @@ void BMSDecryptor::MakeNoteList() {
 					if (obj.mValue == mEndNoteVal) {
 						// convert note object to bgm object if object value is one of the indexes of WAV (always play sound)
 						if (isExistEndWav) {
-							mData.mListBgm.emplace_back(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf);
+							mData.mListBgm.push(Note(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf));
 						}
 						addLong(column, bf);
 						continue;
@@ -456,11 +495,6 @@ void BMSDecryptor::MakeNoteList() {
 
 					lastIndex[column] = static_cast<int>(mData.mListPlayerNote.size());
 					intCh -= 144;	// 36 * 4
-				} else if (bInvisibleNote) {
-					// remove invisible note with no sound data
-					if (mData.mDicWav.count(obj.mValue) == 0) {
-						continue;
-					}
 				}
 			}
 
@@ -479,8 +513,7 @@ void BMSDecryptor::MakeNoteList() {
 			// make note based on the long note information summarized in the above
 			PlayerNote pn(obj.mValue, static_cast<Channel>(intCh), GetTimeUsingBeat(bf), bf, type);
 			TRACE("note measure : " << i << ", channel : " << intCh << ", beat : " << bf.GetValue() << ", time : " << pn.mTime << ", value : " << pn.mKey);
-			mData.mListPlayerNote.emplace_back(std::move(pn));
+			mData.mListPlayerNote.push(std::move(pn));
 		}
-		//LOG("note list per measure make time(ms) : " << clock() - s);
 	}
 }

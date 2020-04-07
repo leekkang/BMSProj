@@ -31,8 +31,12 @@ namespace bms {
 		// -- additional BMSInfo (for construct preview data)
 
 		bool mHasRandom;				// total #RANDOM line count
-		uint16_t mWavCount;				// total wav file count
-		uint16_t mMeasureCount;			// total measure count
+		uint16_t mWavCount;				// The number of total wav file
+		uint16_t mMeasureCount;			// The number of total measure of current bms data
+
+		// non-save data (when filesystem check, this value is filled)
+		/// <summary> Defined for confirmation because the extension of the music list written in the bms file may be different due to its capacity. </summary>
+		std::string mSoundExtension;
 
 		// ----- constructor, operator overloading -----
 
@@ -152,20 +156,16 @@ namespace bms {
 		std::string* mListWavName;
 		///<summary> a list of bmp or video file name, the index is bmp file mapping value </summary>
 		std::string* mListBmpName;
-		///<summary> key : wav file mapping value, value : wav file name </summary>
-		std::unordered_map<int, std::string, Utility::Bypass> mDicWav;
-		///<summary> key : bmp file mapping value, value : bmp or video file name </summary>
-		std::unordered_map<int, std::string> mDicBmp;
 
 		///<summary> a list of the cumulative number of bits per measure  </summary>
 		std::vector<BeatFraction> mListCumulativeBeat;
 		///<summary> a list of the change timing point  </summary>
-		std::vector<TimeSegment> mListTimeSeg;
+		ListPool<TimeSegment> mListTimeSeg;
 		///<summary> a list of the note include BGA data  </summary>
-		std::vector<Note> mListBga;
+		ListPool<Note> mListBga;
 		///<summary> a list of the note include BGM data  </summary>
-		std::vector<Note> mListBgm;
+		ListPool<Note> mListBgm;
 		///<summary> a list of the note that shown on the track </summary>
-		std::vector<PlayerNote> mListPlayerNote;
+		ListPool<PlayerNote> mListPlayerNote;
 	};
 }

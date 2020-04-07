@@ -228,7 +228,8 @@ namespace Utility {
 		}
 
 		constexpr Fraction() : mNumerator(0), mDenominator(1) {}
-		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
+		constexpr Fraction(int n, int d) : mNumerator(n), mDenominator(d) {}	// TODO : performance testing..
+		//constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
 		constexpr Fraction(const Fraction& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "copy constructor" << std::endl;
 		}
@@ -236,6 +237,11 @@ namespace Utility {
 		// caution : if this object is constant and rhs is not defined as as constant, the copy constructor is executed.
 		constexpr Fraction(const Fraction&& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "move constructor" << std::endl;
+		}
+
+		constexpr void Set(int n, int d) {
+			mNumerator = n;
+			mDenominator = d;
 		}
 
 		constexpr void Clear() {
@@ -325,7 +331,7 @@ namespace Utility {
 			return Fraction(*this) -= rhs;
 		}
 		constexpr Fraction& operator*=(const Fraction& rhs) {
-			if (rhs.mNumerator != 0) {
+			if (rhs.mNumerator != 0 && mNumerator != 0) {
 				int n = mNumerator * rhs.mNumerator;
 				int d = mDenominator * rhs.mDenominator;
 				int gcd = GCD(d, n);
@@ -340,7 +346,7 @@ namespace Utility {
 			return Fraction(*this) *= rhs;
 		}
 		constexpr Fraction& operator*=(const int val) {
-			if (val != 0) {
+			if (val != 0 && mNumerator != 0) {
 				int n = mNumerator * val;
 				int gcd = GCD(mDenominator, n);
 				mNumerator = n / gcd;

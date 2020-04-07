@@ -47,7 +47,7 @@ namespace bms {
 		/// parse <paramref name="line"/> for fill header and body data and store parsed line 
 		/// in appropriate variable and temporary data structure
 		/// </summary>
-		bool ParseToRaw(bool bPreview) noexcept;
+		bool ParseToPreviewRaw() noexcept;
 		/// <summary>
 		/// make time segment list in <see cref="bms::BMSData::mListTimeSeg"/> vector contain <see cref="bms::TimeSegment"/> objects
 		/// </summary>
@@ -83,31 +83,24 @@ namespace bms {
 		}
 
 		/// <summary>
-		/// Function that returns the number of beats of a particular measure
-		/// stored in <see cref="mDicTimeSignature"/> of <see cref="BMSData"/> object.
-		/// </summary>
-		inline BeatFraction GetBeatInMeasure(int measure) {
-			return mDicMeasureLength.count(measure) == 0 ? BeatFraction(4, 1) : mDicMeasureLength[measure] * 4;
-		}
-		/// <summary>
 		/// Function that returns cumulative number of beats at a specific timing
 		/// </summary>
 		inline BeatFraction GetBeats(int measure, const BeatFraction& frac) {
-			if (measure > mEndMeasure) {
+			if (measure >= mMeasureCount) {
 				return BeatFraction();
-			} else {
-				return measure == 0 ? frac * GetBeatInMeasure(measure) :
-									  frac * GetBeatInMeasure(measure) + mData.mListCumulativeBeat[measure - 1];
+			} else if (measure == 0) {
+				return frac * mListBeatInMeasure[0];
 			}
+			return frac * mListBeatInMeasure[measure] + mData.mListCumulativeBeat[measure - 1];
 		}
+
 		/// <summary>
 		/// Function that returns a time at a specific point using beats.
 		/// note : Functions that convert time to beats are not provided because errors can occur during casting.
 		/// </summary>
 		inline long long GetTimeUsingBeat(const BeatFraction& beat) {
 			BeatFraction subtract;
-			size_t length = mData.mListTimeSeg.size();
-			size_t index = length - 1;
+			size_t index = static_cast<uint32_t>(mData.mListTimeSeg.size()) - 1;
 			for (; index > 0; --index) {
 				const TimeSegment& t = mData.mListTimeSeg[index];
 				subtract = beat - t.mCurBeat;
@@ -132,7 +125,7 @@ namespace bms {
 		/// </summary>
 		inline long long GetTotalPlayTime() {
 			const TimeSegment& seg = mData.mListTimeSeg[mData.mListTimeSeg.size() - 1];
-			BeatFraction subtract = mData.mListCumulativeBeat[mEndMeasure] - seg.mCurBeat;
+			BeatFraction subtract = mData.mListCumulativeBeat[mMeasureCount - 1] - seg.mCurBeat;
 
 			return seg.mCurTime + subtract.GetTime(seg.mCurBpm);
 		}
@@ -141,37 +134,30 @@ namespace bms {
 		BMSData& mData;
 
 		/// <summary> The number of total measure of current bms data </summary>
-		uint16_t mEndMeasure;
+		uint16_t mMeasureCount;
 		/// <summary> 
 		/// if <see cref="mLongNoteType"/> is <see cref="LongnoteType::RDM_TYPE_2"/>, 
 		/// this value direct wav file key in <see cref="BMSData::mDicWav"/>. 
 		/// </summary>
 		uint16_t mEndNoteVal;
 
+		uint32_t mRawTimingCount;
+		uint32_t mBgmCount;
+		uint32_t mNoteCount;
 		///<summary> a list of temporary time data objects </summary>
-		std::vector<Object> mListRawTiming;
-
-		///<summary> a map of data objects (smallest unit) </summary>
-		std::unordered_map<int, std::vector<Object>> mDicObj;
+		ListPool<Object> mListRawTiming;
 		///<summary> a list of data objects (smallest unit), the index is measure number </summary>
-		std::vector<std::vector<Object>> mListObj;
-
-		///<summary> pair of STOP command number and data </summary>
-		std::unordered_map<int, int> mDicStop;
-		///<summary> pair of BPM command number and data  </summary>
-		std::unordered_map<int, float> mDicBpm;
-		///<summary> pair of measure number and measure length </summary>
-		std::unordered_map<int, BeatFraction> mDicMeasureLength;
+		std::vector<ListPool<Object>> mListObj;
 
 		///<summary> a list of STOP command data, the index is STOP command number </summary>
 		int* mListStop;
 		///<summary> a list of BPM command data, the index is BPM command number </summary>
 		float* mListBpm;
-		///<summary> a list of measure length, the index is measure number </summary>
-		std::vector<BeatFraction> mListMeasureLength;
+		///<summary> a list of beats in one measure, the index is measure number, unit = beat (measure * 4) </summary>
+		std::vector<BeatFraction> mListBeatInMeasure;
 
-		/// <summary> parse function to change the value between "00" and "zz" to integer base 36 with no error check </summary>
-		inline uint16_t ParseValue(const char* val) noexcept {
+		/// <summary> parse function to change the value between "00" and "zz" to integer base <paramref name="radix"/> with no error check </summary>
+		inline uint16_t ParseValue(const char* val, const uint16_t radix) noexcept {
 			bool bFirstLoop = false;
 			char c = *val;
 			uint16_t acc = 0;
@@ -185,7 +171,7 @@ namespace bms {
 				} else {
 					break;
 				}
-				acc = acc * 36 + c;
+				acc = acc * radix + c;
 				c = *++val;
 			} while (bFirstLoop != bFirstLoop);
 

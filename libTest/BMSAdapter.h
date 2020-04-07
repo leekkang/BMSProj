@@ -13,7 +13,7 @@ namespace bms {
 	public:
 		// ----- constructor, operator overloading -----
 
-		BMSAdapter() : mDecryptor(mCurData), mPathTree(mDecryptor){
+		BMSAdapter() : mDecryptor(mCurData), mThread(mCurData), mPathTree(mDecryptor) {
 			Load();
 		};
 		~BMSAdapter() {
@@ -55,6 +55,7 @@ namespace bms {
 					return;
 				}
 				LOG("bms data build time(ms) : " << clock() - s);
+				mCurData.mReady = true;
 			}
 
 			s = clock();

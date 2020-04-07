@@ -25,7 +25,7 @@ namespace bms {
 	/// </summary>
 	struct TimeSegment {
 		TimeSegment() : mCurTime(0), mCurBpm(0) {}
-		TimeSegment(long long time, int bpm, int beatNum, int beatDenum) :
+		TimeSegment(long long time, double bpm, int beatNum, int beatDenum) :
 					mCurTime(time), mCurBpm(bpm), mCurBeat(beatNum, beatDenum) {}
 
 		long long mCurTime;				// the time at which bpm changes (include start point)
@@ -38,6 +38,7 @@ namespace bms {
 	/// smallest unit in this data. music only + note + option
 	/// </summary>
 	struct Object {
+		Object() : mValue(0), mMeasure(0), mChannel(Channel::BGM) {}
 		Object(int val, int measure, Channel channel, int fracIndex, int fracDenom) :
 			mValue(val), mMeasure(measure), mChannel(channel), mFraction(fracIndex, fracDenom) {}
 
@@ -114,11 +115,14 @@ namespace bms {
 				mSize = size;
 			}
 		}
-		inline uint32_t size() {
+		inline uint32_t size() const noexcept {
 			return mCount;
 		}
+		inline void clear() noexcept {
+			mCount = 0;
+		}
 
-		ListPool& operator[](const uint32_t pos) {
+		T& operator[](const uint32_t pos) {
 			return mList[pos];
 		}
 
@@ -139,6 +143,11 @@ namespace bms {
 				++mSize;
 			}
 			++mCount;
+		}
+
+		template<typename TFunc>
+		void Sort(TFunc func) {
+			std::sort(mList.begin(), mList.begin() + mCount, func);
 		}
 	};
 

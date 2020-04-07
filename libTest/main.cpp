@@ -5,11 +5,6 @@
 #include <thread>
 
 int main() {
-	std::vector<int> vec{1, 2, 3};
-	vec.resize(12);
-
-	return 0;
-
 	std::ios::sync_with_stdio(false);
 
 	std::vector<const wchar_t*> paths = {L"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",

@@ -15,9 +15,6 @@ namespace bms {
 		std::wstring mFolderName;
 		std::vector<BMSInfoData*> mListData;
 
-		/// <summary> Defined for confirmation because the extension of the music list written in the bms file may be different due to its capacity. </summary>
-		std::string mSoundExtension;
-
 		/// <summary> used to reduce the string comparison overhead by saving the folder that has been checked when performing file system search. </summary>
 		bool mConfirmed;
 
@@ -255,7 +252,7 @@ namespace bms {
 					for (uint8_t i = 0; i < size; ++i) {
 						BMSInfoData* temp = new BMSInfoData();
 						is >> *temp;
-						if (!IsExistFile(PathAppend(wPath, temp->mFilePath))) {
+						if (!IsExistFile(temp->mFilePath)) {
 							delete temp;
 						} else {
 							vec.emplace_back(temp);
@@ -442,7 +439,7 @@ namespace bms {
 						patternPathList.emplace_back(PathAppend(subPath, subName));
 					} else if (!bCheckSoundExt && IsSoundFile(subName)) {
 						// sound file extension check
-						std::wstring ext = &(subName[wcslen(subName) - 4]);
+						std::wstring ext = &(subName[wcslen(subName) - 3]);
 						extension.assign(ext.begin(), ext.end());
 						bCheckSoundExt = true;
 					}
@@ -461,13 +458,13 @@ namespace bms {
 					std::vector<BMSInfoData*> vec(musicCount);
 					for (uint8_t i = 0; i < musicCount; ++i) {
 						BMSInfoData* temp = new BMSInfoData();
+						temp->mSoundExtension = extension;
 						mDecryptor.BuildInfoData(temp, patternPathList[i].c_str());
 						vec[i] = temp;
 					}
 					// sort pattern list and add in dictionary
 					std::sort(vec.begin(), vec.end(), mPatternSortFunc);
 					AddMusic(subPath, std::move(vec));
-					mDicBms[folderPath][0].mSoundExtension = extension;
 					bIncMusicNum = true;
 					continue;
 				}
@@ -483,13 +480,13 @@ namespace bms {
 						vec.emplace_back(temp);
 						bIncPatternNum = true;
 					}
+					vec[i]->mSoundExtension = extension;
 				}
 				// sort pattern list if more than one pattern has been added
 				if (bIncPatternNum) {
 					std::sort(vec.begin(), vec.end(), mPatternSortFunc);
 					mChangeSave = true;
 				}
-				musicList[musicIndex].mSoundExtension = extension;
 				delete[] patternChecker;
 			}
 
@@ -510,7 +507,10 @@ namespace bms {
 				};
 			} else if (opt == SortOption::LEVEL_ASC) {
 				return [](const BMSNode& lhs, const BMSNode& rhs)->bool {
-					return lhs.mListData[0]->mLevel < rhs.mListData[0]->mLevel;
+					if (lhs.mListData[0]->mLevel != rhs.mListData[0]->mLevel) {
+						return lhs.mListData[0]->mLevel < rhs.mListData[0]->mLevel;
+					}
+					return lhs.mFolderName < rhs.mFolderName;
 				};
 			} else if (opt == SortOption::TITLE_ASC) {
 				return [](const BMSNode& lhs, const BMSNode& rhs)->bool {
@@ -534,7 +534,10 @@ namespace bms {
 				};
 			} else if (opt == SortOption::LEVEL_DEC) {
 				return [](const BMSNode& lhs, const BMSNode& rhs)->bool {
-					return lhs.mListData[0]->mLevel > rhs.mListData[0]->mLevel;
+					if (lhs.mListData[0]->mLevel != rhs.mListData[0]->mLevel) {
+						return lhs.mListData[0]->mLevel > rhs.mListData[0]->mLevel;
+					}
+					return lhs.mFolderName > rhs.mFolderName;
 				};
 			} else if (opt == SortOption::TITLE_DEC) {
 				return [](const BMSNode& lhs, const BMSNode& rhs)->bool {
@@ -562,7 +565,10 @@ namespace bms {
 				};
 			} else if (opt == SortOption::LEVEL_ASC) {
 				return [](BMSInfoData* const&lhs, BMSInfoData* const& rhs)->bool {
-					return lhs->mLevel < rhs->mLevel;
+					if (lhs->mLevel != rhs->mLevel) {
+						return lhs->mLevel < rhs->mLevel;
+					}
+					return lhs->mDifficulty < rhs->mDifficulty;
 				};
 			} else if (opt == SortOption::TITLE_ASC) {
 				return [](BMSInfoData* const& lhs, BMSInfoData* const& rhs)->bool {
@@ -586,7 +592,10 @@ namespace bms {
 				};
 			} else if (opt == SortOption::LEVEL_DEC) {
 				return [](BMSInfoData* const&lhs, BMSInfoData* const& rhs)->bool {
-					return lhs->mLevel > rhs->mLevel;
+					if (lhs->mLevel != rhs->mLevel) {
+						return lhs->mLevel > rhs->mLevel;
+					}
+					return lhs->mDifficulty > rhs->mDifficulty;
 				};
 			} else if (opt == SortOption::TITLE_DEC) {
 				return [](BMSInfoData* const& lhs, BMSInfoData* const& rhs)->bool {

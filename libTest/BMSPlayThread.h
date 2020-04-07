@@ -38,7 +38,7 @@ namespace bms {
 	/// </summary>
 	class PlayThread {
 	public:
-		PlayThread() : mStop(true) {
+		PlayThread(BMSData& data) : mData(data), mStop(true) {
 			// initialize FMOD library
 			mFMOD.Init();
 		} 
@@ -67,14 +67,15 @@ namespace bms {
 			std::unordered_set<int> syncSounds;
 			int bgmCount = 0, noteCount = 0;
 			mLoadingChecker.fill({});
-			while (mListBgm[bgmCount].mTime < ASYNC_READY_TIME) syncSounds.insert(mListBgm[bgmCount++].mKey);
-			while (mListNote[noteCount].mTime < ASYNC_READY_TIME) syncSounds.insert(mListNote[noteCount++].mKey);
+			while (mData.mListBgm[bgmCount].mTime < ASYNC_READY_TIME) 
+				syncSounds.insert(mData.mListBgm[bgmCount++].mKey);
+			while (mData.mListPlayerNote[noteCount].mTime < ASYNC_READY_TIME) 
+				syncSounds.insert(mData.mListPlayerNote[noteCount++].mKey);
 
 			for (int key : syncSounds) {
-				auto dicVal = mDicWave.find(key);
-				if (dicVal == mDicWave.end()) continue;
-				auto value = dicVal->second;
-				mFMOD.CreateSound(folderPath + value, key);
+				std::string dicVal = mListWave[key];
+				if (dicVal == "") continue;
+				mFMOD.CreateSound(folderPath + dicVal, key);
 				mLoadingChecker[key] = true;
 			}
 			LOG("FMOD sync sound create time(ms) : " << clock() - s)
@@ -84,17 +85,17 @@ namespace bms {
 			auto asyncLoad = [&](bool bIsBgm, int startPoint) -> bool{
 				int max = bIsBgm ? mMaxBgmIndex : mMaxNoteIndex;
 				while (startPoint < max && mLoadingController) {
-					int key = bIsBgm ? mListBgm[startPoint].mKey : mListNote[startPoint].mKey;
-					auto dicVal = mDicWave.find(key);
+					int key = bIsBgm ? mData.mListBgm[startPoint].mKey : mData.mListPlayerNote[startPoint].mKey;
+					std::string dicVal = mListWave[key];
 					mLoadingMutex.lock();
 					// already created or no sound object -> skip
-					if (mLoadingChecker[key] || dicVal == mDicWave.end()) {
+					if (mLoadingChecker[key] || dicVal == "") {
 						startPoint += THREAD_NUM_FOR_LOADING;
 						mLoadingMutex.unlock();
 					} else {
 						mLoadingChecker[key] = true;
 						mLoadingMutex.unlock();
-						mFMOD.CreateSound(folderPath + dicVal->second, key);
+						mFMOD.CreateSound(folderPath + dicVal, key);
 						//mFMOD.CreateSoundAsync(folderPath + dicVal->second, key);
 						//printf("create %s sound : %d, %d, %s\n", bIsBgm ? "BGM" : "Note", startPoint, key, (dicVal->second).c_str());
 						startPoint += THREAD_NUM_FOR_LOADING;
@@ -132,7 +133,7 @@ namespace bms {
 		}
 
 		/// <summary>
-		/// function to create a thread and play music by reading <paramref name="data"/> of <see cref="BMS::BMSData"/>
+		/// function to create a thread and play music by reading <see cref="mData"/> of <see cref="BMS::BMSData"/>
 		/// </summary>
 		void Play(const BMSData& data) {
 			// terminate if the thread is alive
@@ -145,16 +146,13 @@ namespace bms {
 				return;
 			}
 
-			std::wstring filePath = data.mInfo->mFilePath;
+			std::wstring filePath = mData.mInfo->mFilePath;
 			std::string folderPath = Utility::WideToUTF8(filePath.substr(0, filePath.find_last_of(L'/'))) + '/';
 			clock_t s = clock();
 			// initialization. preloading sound files
 			if (mPrevFolderPath != folderPath) {
-				mListBgm = data.mListBgm;
-				mListNote = data.mListPlayerNote;
-				mMaxBgmIndex = static_cast<int>(mListBgm.size());
-				mMaxNoteIndex = static_cast<int>(mListNote.size());
-				//mDicWave = data.mDicWav;
+				mMaxBgmIndex = static_cast<int>(mData.mListBgm.size());
+				mMaxNoteIndex = static_cast<int>(mData.mListPlayerNote.size());
 				LOG("copy vector time(ms) : " << clock() - s)
 
 				s = clock();
@@ -166,7 +164,7 @@ namespace bms {
 
 			LOG("FMOD sound create time(ms) : " << clock() - s)
 
-			mDuration = std::chrono::microseconds(data.mInfo->mTotalTime + 500000ll);
+			mDuration = std::chrono::microseconds(mData.mInfo->mTotalTime + 500000ll);
 			// music start
 			mStop = false;
 			// reference : https://stackoverflow.com/questions/35897617/c-loop-with-fixed-delta-time-on-a-background-thread
@@ -219,20 +217,26 @@ namespace bms {
 			//	//std::cout << "bgm play : " << mBgmIndex << std::endl;
 			//	mBgmIndex++;
 			//}
-			while (mBgmIndex < mMaxBgmIndex && mListBgm[mBgmIndex].mTime < deltaVal) {
-				// music outside the error range is not played.
-				if (mListBgm[mBgmIndex].mTime > minTime) {
-					mFMOD.PlaySingleSound(mListBgm[mBgmIndex].mKey);
+			while (mBgmIndex < mMaxBgmIndex) {
+				Note& note = mData.mListBgm[mBgmIndex];
+				if (note.mTime < deltaVal) {
+					break;
 				}
-				//std::cout << "bgm play : " << mBgmIndex << std::endl;
+				// music outside the error range is not played.
+				if (note.mTime > minTime) {
+					mFMOD.PlaySingleSound(note.mKey);
+				}
 				mBgmIndex++;
 			}
-			while (mNoteIndex < mMaxNoteIndex && mListNote[mNoteIndex].mTime < deltaVal) {
-				// play note (landmine doesn't have own sound == mute)
-				if (mListNote[mNoteIndex].mType != NoteType::LANDMINE && mListNote[mNoteIndex].mTime > minTime) {
-					mFMOD.PlaySingleSound(mListNote[mNoteIndex].mKey);
+			while (mNoteIndex < mMaxNoteIndex) {
+				PlayerNote& note = mData.mListPlayerNote[mNoteIndex];
+				if (note.mTime < deltaVal) {
+					break;
 				}
-				//std::cout << "note play : " << mNoteIndex << std::endl;
+				// play note (landmine doesn't have own sound == mute)
+				if (note.mType != NoteType::LANDMINE && note.mTime > minTime) {
+					mFMOD.PlaySingleSound(note.mKey);
+				}
 				mNoteIndex++;
 			}
 
@@ -269,14 +273,13 @@ namespace bms {
 		std::mutex mLoadingMutex;
 		std::future<bool> mFuture[THREAD_NUM_FOR_LOADING * 2];
 
+		BMSData& mData;
 		int mNoteIndex;							// used for note list looping
 		int mBgmIndex;							// used for bgm list looping
 
 		int mMaxNoteIndex;
 		int mMaxBgmIndex;
-		std::vector<Note> mListBgm;
-		std::vector<PlayerNote> mListNote;
-		std::unordered_map<int, std::string> mDicWave;
+		std::string* mListWave;
 
 		FMODWrapper mFMOD;
 	};
