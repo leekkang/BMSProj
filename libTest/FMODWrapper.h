@@ -84,6 +84,9 @@ namespace bms {
 			std::lock_guard<std::mutex> guard{mMutex};
 			// TODO : replace exit to logging form that can easily see.
 			if (IsJobFailed("failed to create sound : " + filePath)) {
+				std::wstring path = Utility::UTF8ToWide(filePath);
+				struct stat buffer;
+				bool isExist = _wstat(path.data(), (struct _stat64i32*)&buffer) == 0;
 				exit(-1);
 				return;
 			}
@@ -157,7 +160,7 @@ namespace bms {
 		void* extradriverdata = 0;
 
 		std::mutex mMutex;
-		std::unordered_map<int, FMOD::Sound*> mDicSound;
+		std::unordered_map<int, FMOD::Sound*, Utility::Bypass> mDicSound;
 
 		/// <summary> check if last processed job was successful. if failed, write <paramref name="output"/> to console </summary>
 		bool IsJobFailed(const std::string& output = "") {

@@ -7,6 +7,10 @@
 //			   https://doitnow-man.tistory.com/211
 //			   https://codingtidbit.com/2020/02/09/c17-codecvt_utf8-is-deprecated/
 namespace Utility {
+	// For convenience, frequently defined locales are statically registered. Decide whether or not to eliminate it later
+	static std::locale sKorLoc("Korean");
+	static std::locale sJpnLoc("Japanese");
+
 	typedef std::codecvt<wchar_t, char, mbstate_t> cvt_facet;
 	/// <summary>
 	/// convert Unicode to UTF-8 

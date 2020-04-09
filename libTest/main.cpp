@@ -5,7 +5,7 @@
 #include <thread>
 
 int main() {
-	std::ios::sync_with_stdio(false);
+	//std::ios::sync_with_stdio(false);
 
 	std::vector<const wchar_t*> paths = {L"./StreamingAssets/XIV - 虚空グラデーション/GRAD_0710_SPA.bml",
 										 L"./StreamingAssets/2011Route - a meadow full of speculation/bwroad10-7a.bml",
@@ -14,13 +14,14 @@ int main() {
 
 	};
 
+	bool bLoading = false;
 	uint16_t folderIndex = 0;
 	uint16_t musicIndex = 0;
+	uint8_t patternIndex = 0;
 	bms::BMSAdapter adapter;
 
 	uint16_t folderMax = adapter.GetFolderList().size();
-	std::vector<bms::BMSNode>& musicList = adapter.GetMusicList(folderIndex);
-	bms::BMSInfoData* curMusic = musicList[musicIndex].mListData[0];
+	const std::vector<bms::BMSNode>* musicList = &adapter.GetMusicList(folderIndex);
 
 	auto folderChange = [&](uint16_t operand) {
 		uint16_t oldIndex = folderIndex;
@@ -29,32 +30,53 @@ int main() {
 		else if (folderIndex >= folderMax) folderIndex = 0;
 		
 		if (oldIndex != folderIndex) {
-			musicList = adapter.GetMusicList(folderIndex);
-			musicIndex = 0;
-			curMusic = musicList[musicIndex].mListData[0];
 			adapter.TerminateMusic();
-			adapter.Play(curMusic);
+			bLoading = true;
+			std::cout << "folder loading..." << std::endl;
+			musicList = &adapter.GetMusicList(folderIndex);
+			bLoading = false;
+
+			musicIndex = 0;
+			patternIndex = 0;
+			adapter.Play((*musicList)[0].mListData[0]);
 		}
 	};
 
 	auto musicChange = [&](uint16_t operand) {
 		uint16_t oldIndex = musicIndex;
+
 		musicIndex += operand;
-		if (musicIndex < 0) musicIndex = musicList.size() - 1;
-		else if (musicIndex >= musicList.size()) musicIndex = 0;
+		if (musicIndex < 0) musicIndex = (*musicList).size() - 1;
+		else if (musicIndex >= (*musicList).size()) musicIndex = 0;
 
 		if (oldIndex != musicIndex) {
-			curMusic = musicList[musicIndex].mListData[0];
 			adapter.TerminateMusic();
-			adapter.Play(curMusic);
+			patternIndex = 0;
+			adapter.Play((*musicList)[musicIndex].mListData[0]);
 		}
 	};
 
-	adapter.Play(curMusic);
+	auto patternChange = [&](uint8_t operand) {
+		uint8_t oldIndex = patternIndex;
+		const auto& list = (*musicList)[musicIndex].mListData;
+
+		patternIndex += operand;
+		if (patternIndex < 0) patternIndex = list.size() - 1;
+		else if (patternIndex >= list.size()) patternIndex = 0;
+
+		if (oldIndex != patternIndex) {
+			adapter.TerminateMusic();
+			adapter.Play(list[patternIndex]);
+		}
+	};
+
+	adapter.Play((*musicList)[0].mListData[0]);
 
 	// main loop
 	while (true) {
 		int i = _getch();
+		if (bLoading) continue;
+
 		if (i == 27) {
 			adapter.TerminateMusic();
 			break;
@@ -65,9 +87,9 @@ int main() {
 			} else if (i == 80) {	// down arrow
 				musicChange(-1);
 			} else if (i == 75) {	// left arrow
-				folderChange(1);
-			} else if (i == 77) {	// right arrow
 				folderChange(-1);
+			} else if (i == 77) {	// right arrow
+				folderChange(1);
 			}
 		}
 		// if multiple threads work

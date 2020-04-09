@@ -59,21 +59,19 @@ namespace bms {
 			clock_t s = clock();
 
 			// terminate prevthread if it activated
-			if (mLoadingController) {
-				ForceEndLoadingThread();
-			}
+			ForceEndLoadingThread();
 
 			// Up to a certain time, music files are loaded synchronously to ensure playback.
 			std::unordered_set<int> syncSounds;
 			int bgmCount = 0, noteCount = 0;
 			mLoadingChecker.fill({});
-			while (mData.mListBgm[bgmCount].mTime < ASYNC_READY_TIME) 
+			while (bgmCount < mMaxBgmCount && mData.mListBgm[bgmCount].mTime < ASYNC_READY_TIME)
 				syncSounds.insert(mData.mListBgm[bgmCount++].mKey);
-			while (mData.mListPlayerNote[noteCount].mTime < ASYNC_READY_TIME) 
+			while (noteCount < mMaxNoteCount && mData.mListPlayerNote[noteCount].mTime < ASYNC_READY_TIME)
 				syncSounds.insert(mData.mListPlayerNote[noteCount++].mKey);
 
 			for (int key : syncSounds) {
-				std::string dicVal = mListWave[key];
+				std::string dicVal = mData.mListWavName[key];
 				if (dicVal == "") continue;
 				mFMOD.CreateSound(folderPath + dicVal, key);
 				mLoadingChecker[key] = true;
@@ -83,10 +81,10 @@ namespace bms {
 			// async load lambda expression. it is an argument to std::async object
 			/// bIsBgm value is true when loop is BGM, false when loop is player note
 			auto asyncLoad = [&](bool bIsBgm, int startPoint) -> bool{
-				int max = bIsBgm ? mMaxBgmIndex : mMaxNoteIndex;
+				int max = bIsBgm ? mMaxBgmCount : mMaxNoteCount;
 				while (startPoint < max && mLoadingController) {
 					int key = bIsBgm ? mData.mListBgm[startPoint].mKey : mData.mListPlayerNote[startPoint].mKey;
-					std::string dicVal = mListWave[key];
+					std::string dicVal = mData.mListWavName[key];
 					mLoadingMutex.lock();
 					// already created or no sound object -> skip
 					if (mLoadingChecker[key] || dicVal == "") {
@@ -106,13 +104,13 @@ namespace bms {
 				return true;
 			};
 
-			LOG("mFuture init value : " << mFuture[0].valid())
+			//LOG("mFuture init value : " << mFuture[0].valid())
 			mLoadingController = true;
 			for (int i = 0; i < THREAD_NUM_FOR_LOADING; ++i) {
 				mFuture[i * 2] = std::async(std::launch::async, asyncLoad, true, bgmCount + i);
 				mFuture[i * 2 + 1] = std::async(std::launch::async, asyncLoad, false, noteCount + i);
 			}
-			LOG("mFuture deferred value : " << mFuture[0].valid())
+			//LOG("mFuture deferred value : " << mFuture[0].valid())
 
 			/*for (std::pair<int, std::string> element : dic) {
 				if (syncSounds.count(element.first) == 0) {
@@ -125,8 +123,11 @@ namespace bms {
 		/// Function that terminates the loading thread immediately
 		/// </summary>
 		void ForceEndLoadingThread() {
-			mLoadingController = false;
+			if (!mLoadingController) {
+				return;
+			}
 
+			mLoadingController = false;
 			for (int i = 0; i < THREAD_NUM_FOR_LOADING * 2; ++i) {
 				mFuture[i].get();
 			}
@@ -151,8 +152,8 @@ namespace bms {
 			clock_t s = clock();
 			// initialization. preloading sound files
 			if (mPrevFolderPath != folderPath) {
-				mMaxBgmIndex = static_cast<int>(mData.mListBgm.size());
-				mMaxNoteIndex = static_cast<int>(mData.mListPlayerNote.size());
+				mMaxBgmCount = static_cast<int>(mData.mListBgm.size());
+				mMaxNoteCount = static_cast<int>(mData.mListPlayerNote.size());
 				LOG("copy vector time(ms) : " << clock() - s)
 
 				s = clock();
@@ -217,9 +218,9 @@ namespace bms {
 			//	//std::cout << "bgm play : " << mBgmIndex << std::endl;
 			//	mBgmIndex++;
 			//}
-			while (mBgmIndex < mMaxBgmIndex) {
+			while (mBgmIndex < mMaxBgmCount) {
 				Note& note = mData.mListBgm[mBgmIndex];
-				if (note.mTime < deltaVal) {
+				if (note.mTime >= deltaVal) {
 					break;
 				}
 				// music outside the error range is not played.
@@ -228,9 +229,9 @@ namespace bms {
 				}
 				mBgmIndex++;
 			}
-			while (mNoteIndex < mMaxNoteIndex) {
+			while (mNoteIndex < mMaxNoteCount) {
 				PlayerNote& note = mData.mListPlayerNote[mNoteIndex];
-				if (note.mTime < deltaVal) {
+				if (note.mTime >= deltaVal) {
 					break;
 				}
 				// play note (landmine doesn't have own sound == mute)
@@ -247,6 +248,9 @@ namespace bms {
 		/// function to call when you want to terminate the thread
 		/// </summary>
 		void ForceEnd() {
+			// terminate loading threads
+			ForceEndLoadingThread();
+
 			if (!IsPlaying()) {
 				return;
 			}
@@ -277,9 +281,8 @@ namespace bms {
 		int mNoteIndex;							// used for note list looping
 		int mBgmIndex;							// used for bgm list looping
 
-		int mMaxNoteIndex;
-		int mMaxBgmIndex;
-		std::string* mListWave;
+		int mMaxNoteCount;
+		int mMaxBgmCount;
 
 		FMODWrapper mFMOD;
 	};

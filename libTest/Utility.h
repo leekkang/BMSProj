@@ -77,7 +77,7 @@ namespace Utility {
 
 	// strtoi source code : https://github.com/gcc-mirror/gcc/blob/master/libiberty/strtol.c
 	/// <summary> Simple string parse to integer with no exception </summary>
-	constexpr int parseInt(const char* p, const int radix = 10) noexcept {
+	constexpr int parseInt(const char* p, const int length = 0, const int radix = 10) noexcept {
 		while (*p == ' ') {
 			++p;
 		}
@@ -89,9 +89,11 @@ namespace Utility {
 			++p;
 		}
 
+		bool hasLimit = length != 0;
 		char c = *p;
+		const char* pstart = p;
 		int acc = 0;
-		while (c) {
+		while (hasLimit ? (p - pstart) < length : *p) {
 			if (*p >= '0' && *p <= '9') {
 				c -= '0';
 			} else if (*p >= 'A' && *p <= 'Z') {

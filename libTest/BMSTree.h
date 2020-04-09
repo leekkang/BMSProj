@@ -94,7 +94,7 @@ namespace bms {
 		}
 
 		/// <summary> return all list of bms folder name </summary>
-		inline std::vector<std::string> GetFolderList() {
+		inline const std::vector<std::string> GetFolderList() {
 			uint16_t size = static_cast<uint16_t>(mListFolder.size());
 			std::vector<std::string> vec(size);
 			for (int i = 0; i < size; ++i) {
@@ -104,15 +104,17 @@ namespace bms {
 		}
 
 		/// <summary> return proper list of bms music folder </summary>
-		inline std::vector<BMSNode>& GetMusicList(uint16_t index) {
+		inline const std::vector<BMSNode>& GetMusicList(uint16_t index) {
 			if (index >= mListFolder.size()) {
 				throw std::out_of_range("mListFolder index is out of range");
 			}
 			std::pair<std::wstring, bool>& folder = mListFolder[index];
 			// check update value
 			if (!folder.second) {
+				clock_t s = clock();
 				SetMusicList(folder.first);
 				folder.second = true;
+				std::cout << "subdirectory load time(ms) : " << std::to_string(clock() - s) << '\n';
 			}
 			// if iter == mDicBms.end(), this is an error that should not happen because it is set once above.
 			auto iter = mDicBms.find(mListFolder[index].first);
@@ -121,7 +123,7 @@ namespace bms {
 
 		/// <summary> return path of bms pattern </summary>
 		BMSInfoData* GetPattern(uint16_t folderIndex, uint16_t musicIndex, uint8_t patternIndex) {
-			std::vector<BMSNode>& music = GetMusicList(folderIndex);
+			const std::vector<BMSNode>& music = GetMusicList(folderIndex);
 			if (musicIndex >= music.size()) {
 				return nullptr;
 			}
@@ -177,7 +179,7 @@ namespace bms {
 				}
 			}
 			os.close();
-			std::cout << "save time(ms) : " << std::to_string(clock() - s) << '\n';
+			std::cout << "BMSInfoData save time(ms) : " << std::to_string(clock() - s) << '\n';
 		}
 
 		/// <summary>
@@ -235,14 +237,14 @@ namespace bms {
 			std::ifstream is(CACHE_FILE_NAME, std::ios::binary);
 			if (is.is_open()) {
 				std::wstring wPath;
-				uint16_t size;
+				uint8_t size;
 				while (is.peek() != std::ifstream::traits_type::eof()) {
 					wPath = Utility::UTF8ToWide(ReadFromBinary<std::string>(is));
-					size = ReadFromBinary<uint16_t>(is);
+					size = ReadFromBinary<uint8_t>(is);
 					if (!IsExistFile(wPath)) {
 						// folder is not found -> discard
 						BMSInfoData temp;
-						for (uint16_t i = 0; i < size; ++i) {
+						for (uint8_t i = 0; i < size; ++i) {
 							is >> temp;
 						}
 						continue;

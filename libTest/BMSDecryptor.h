@@ -69,12 +69,12 @@ namespace bms {
 				return bms::EncodingType::UTF_8;
 			}
 
-			std::wstring kws = Utility::AnsiToWide(str, std::locale("Korean"));
-			std::wstring jws = Utility::AnsiToWide(str, std::locale("Japanese"));
+			std::wstring kws = Utility::AnsiToWide(str, Utility::sKorLoc);
+			std::wstring jws = Utility::AnsiToWide(str, Utility::sJpnLoc);
 			// If both locales are converted successfully, it is likely to be Japanese. 
 			// because EUC-KR contains Japanese characters, but Shift-jis does not.
 			if (kws.size() != 0 && jws.size() != 0) {
-				return Utility::WideToAnsi(kws, std::locale("Japanese")).size() == 0 ?
+				return Utility::WideToAnsi(kws, Utility::sJpnLoc).size() == 0 ?
 						bms::EncodingType::SHIFT_JIS : bms::EncodingType::EUC_KR;
 			}
 
@@ -173,7 +173,7 @@ namespace bms {
 				}
 				acc = acc * radix + c;
 				c = *++val;
-			} while (bFirstLoop != bFirstLoop);
+			} while (bFirstLoop = !bFirstLoop);
 
 			return acc;
 		}

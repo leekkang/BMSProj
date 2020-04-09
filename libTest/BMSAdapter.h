@@ -58,6 +58,7 @@ namespace bms {
 				mCurData.mReady = true;
 			}
 
+			LOG("Play data : " + Utility::WideToUTF8(mCurData.mInfo->mFilePath));
 			s = clock();
 			mThread.Play(mCurData);
 			LOG("mThread.Play time(ms) : " << clock() - s);
@@ -68,20 +69,18 @@ namespace bms {
 		}
 
 		inline void TerminateMusic() {
-			if (mThread.IsPlaying()) {
-				mThread.ForceEnd();
-			}
+			mThread.ForceEnd();
 		}
 
 		// ----- get, set function -----
 
 		/// <summary> return all list of bms folder name </summary>
-		std::vector<std::string> GetFolderList() {
+		const std::vector<std::string> GetFolderList() {
 			return mPathTree.GetFolderList();
 		}
 
 		/// <summary> return proper list of bms music folder </summary>
-		std::vector<BMSNode>& GetMusicList(uint16_t index) {
+		const std::vector<BMSNode>& GetMusicList(uint16_t index) {
 			return mPathTree.GetMusicList(index);
 		}
 
@@ -98,12 +97,16 @@ namespace bms {
 
 		/// <summary> call <see cref="bms::BMSTree::Load()"/> function </summary>
 		void Load() {
+			clock_t s = clock();
 			mPathTree.Load(mDecryptor);
+			LOG("mPathTree load time(ms) : " << clock() - s);
 		}
 
 		/// <summary> call <see cref="bms::BMSTree::Save()"/> function </summary>
 		void Save() {
+			clock_t s = clock();
 			mPathTree.Save();
+			LOG("mPathTree save time(ms) : " << clock() - s);
 		}
 	};
 }

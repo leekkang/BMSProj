@@ -21,6 +21,7 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 	char prevMeasure[4] = {0,};
 	bool b5key = true, bSingle = true;
 	int player = 1;
+	std::string encodeChecker; encodeChecker.reserve(10240);
 
 	bool isHeader = true;
 	std::string line; line.reserve(1024);
@@ -40,6 +41,7 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 		if (isHeader) {
 			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
 				++wavCnt;
+				encodeChecker.append(pLine + 6);
 			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) == ' ') {
 				data->mBpm = data->mMinBpm = data->mMaxBpm = Utility::parseInt(pLine + 4);
 			} else if (Utility::StartsWith(pLine, "PLAYER") && length > 7) {
@@ -51,16 +53,19 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 				data->mDifficulty = Utility::parseInt(pLine + 11);
 			} else if (Utility::StartsWith(pLine, "GENRE") && length > 6) {
 				data->mGenre = std::string(pLine + 6);
+				encodeChecker.append(data->mGenre);
 			} else if (Utility::StartsWith(pLine, "TITLE") && length > 6) {
 				data->mTitle = std::string(pLine + 6);
+				encodeChecker.append(data->mTitle);
 			} else if (Utility::StartsWith(pLine, "ARTIST") && length > 7) {
 				data->mArtist = std::string(pLine + 7);
+				encodeChecker.append(data->mArtist);
 			}
 		} else {
 			if (length > 7 && *(pLine + 5) == ':') {
 				// check measure number
 				if (!Utility::StartsWith(prevMeasure, pLine)) {
-					uint16_t measure = Utility::parseInt(pLine);
+					uint16_t measure = Utility::parseInt(pLine, 3);
 					if (measureCnt < measure) {
 						measureCnt = measure;
 					}
@@ -94,7 +99,7 @@ bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 	// set encoding type
 	EncodingType type = in.GetEncodeType();
 	if (type == EncodingType::UNKNOWN) {
-		type = GetEncodeType(data->mGenre + data->mTitle + data->mArtist);
+		type = GetEncodeType(encodeChecker);
 	}
 	data->mFileType = type;
 	data->mFilePath = std::wstring(path);
@@ -169,6 +174,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 
 	mMeasureCount = mData.mInfo->mMeasureCount;
 	const char* extension = mData.mInfo->mSoundExtension.data();
+	EncodingType encodingType = mData.mInfo->mFileType;
 
 	// initialize
 	memset(mListStop, 0, sizeof(int) * MAX_INDEX_LENGTH);
@@ -188,6 +194,16 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 	mRawTimingCount = 0;
 	mBgmCount = 0;
 	mNoteCount = 0;
+
+	// lambda function that returns a string modified for a file type
+	auto GetUTFString = [](const char* s, EncodingType type) {
+		// TODO : unicode file names other than Japanese will be added later.
+		if (type == EncodingType::SHIFT_JIS) {
+			return Utility::ToUTF8(s, Utility::sJpnLoc);
+		} else {
+			return std::string(s);
+		}
+	};
 
 	// lambda function to get fraction from string
 	auto GetFraction = [](const char* p) {
@@ -233,7 +249,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 			if (Utility::StartsWith(pLine, "WAV") && length > 6) {
 				char* sPoint = &(line[line.size() - 3]);
 				strncpy_s(sPoint, 4, extension, 3);
-				mData.mListWavName[ParseValue(pLine + 3, 36)] = std::string(pLine + 6);
+				mData.mListWavName[ParseValue(pLine + 3, 36)] = GetUTFString(pLine + 6, encodingType);
 			} else if (Utility::StartsWith(pLine, "BPM") && *(pLine + 3) != ' ' && length > 6) {	// #BPMXX
 				mListBpm[ParseValue(pLine + 3, 36)] = static_cast<float>(Utility::parseFloat(pLine + 6));
 			} else if (Utility::StartsWith(pLine, "STAGEFILE") && length > 10) {
@@ -245,7 +261,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 			} else if (Utility::StartsWith(pLine, "LNTYPE") && length > 7) {
 				mData.mLongNoteType = static_cast<LongnoteType>(Utility::parseInt(pLine + 7));
 			} else if (Utility::StartsWith(pLine, "LNOBJ") && length > 6) {
-				mEndNoteVal = Utility::parseInt(pLine + 6, 36);
+				mEndNoteVal = Utility::parseInt(pLine + 6, 0, 36);
 				mData.mLongNoteType = LongnoteType::RDM_TYPE_2;
 			} else {
 				TRACE("This line is discarded : " << line);
@@ -305,7 +321,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 		}
 
 		// create time signature dictionary for calculate beat
-		uint16_t measure = (*pLine * 100) + (*(pLine + 1) * 10) + *(pLine + 2);
+		uint16_t measure = ((*pLine - '0') * 100) + ((*(pLine + 1) - '0') * 10) + (*(pLine + 2) - '0');
 		if (channel == Channel::MEASURE_LENGTH) {
 			mListBeatInMeasure[measure] = GetFraction(pLine + 6);
 			TRACE("Add TimeSignature : " << measure << ", length : " << mListBeatInMeasure[measure].mNumerator << " / " << mListBeatInMeasure[measure].mDenominator);
@@ -368,7 +384,7 @@ void BMSDecryptor::MakeTimeSegment() {
 	TRACE("TimeSegment measure : 0, beat : 0, second : 0, bpm : " + std::to_string(curBpm));
 
 	// sort bpm, time-related object list for use as raw TimeSegment struct list
-	mListRawTiming.Sort([](Object lhs, Object rhs) {
+	mListRawTiming.Sort([](const Object& lhs, const Object& rhs) {
 		return lhs.mMeasure != rhs.mMeasure ? lhs.mMeasure < rhs.mMeasure :
 			 lhs.mFraction != rhs.mFraction ? lhs.mFraction < rhs.mFraction :
 											  lhs.mChannel < rhs.mChannel;
@@ -438,7 +454,7 @@ void BMSDecryptor::MakeNoteList() {
 
 		ListPool<Object>& objs = mListObj[i];
 		// 1) sort all object list by ascending of beats
-		objs.Sort([](Object lhs, Object rhs) ->bool { return lhs.mFraction < rhs.mFraction; });
+		objs.Sort([](const Object& lhs, const Object& rhs) ->bool { return lhs.mFraction < rhs.mFraction; });
 
 		// 2) Create two lists: a note list that plays sounds and an object list that plays BGA.
 		// TODO : refactor to avoid using GetTimeUsingBeat() functions

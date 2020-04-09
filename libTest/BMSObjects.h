@@ -125,6 +125,9 @@ namespace bms {
 		T& operator[](const uint32_t pos) {
 			return mList[pos];
 		}
+		const T& operator[](const uint32_t pos) const {
+			return mList[pos];
+		}
 
 		void push(const T& val) {
 			if (mCount < mSize) {
