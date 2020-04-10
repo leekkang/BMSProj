@@ -414,6 +414,7 @@ void BMSDecryptor::MakeTimeSegment() {
 void BMSDecryptor::MakeNoteList() {
 	mData.mListBgm.resize(mBgmCount);
 	mData.mListPlayerNote.resize(mNoteCount);
+	// TODO : add logic to remove player notes if they exist on the same channel, same bit
 
 	// true if long note type is RDM type 2
 	bool isRDM2 = mData.mLongNoteType == LongnoteType::RDM_TYPE_2;
