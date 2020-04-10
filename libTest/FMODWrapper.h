@@ -79,7 +79,7 @@ namespace bms {
 		void CreateSound(const std::string& filePath, int key) {
 			// sound option reference : https://documentation.help/FMOD-API/FMOD_MODE.html
 			FMOD::Sound* sound;
-			result = system->createSound(filePath.c_str(), FMOD_DEFAULT, 0, &sound);
+			result = system->createSound(filePath.c_str(), FMOD_LOOP_OFF | FMOD_LOWMEM, 0, &sound);
 
 			std::lock_guard<std::mutex> guard{mMutex};
 			// TODO : replace exit to logging form that can easily see.

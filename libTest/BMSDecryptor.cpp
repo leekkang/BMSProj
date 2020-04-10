@@ -11,7 +11,7 @@ using namespace bms;
 bool BMSDecryptor::BuildInfoData(BMSInfoData* data, const wchar_t* path) {
 	BMSifstream in(path);
 	if (!in.IsOpen()) {
-		TRACE("The file does not exist in this path : " + Utility::WideToUTF(path));
+		TRACE("The file does not exist in this path : " + Utility::WideToUTF8(path));
 		return false;
 	}
 
@@ -391,7 +391,7 @@ void BMSDecryptor::MakeTimeSegment() {
 			TRACE("TimeSegment measure : " << curMeasure << ", beat : " << curBeatSum.GetValue() << ", second : " << curTime << ", delta : " << delta << ", bpm : " << 0);
 			// value / 48 = beats to stop, time = beat * (60/bpm), 
 			// --> stop time = (value * 5) / (bpm * 4)
-			TRACE("measure : " << curMeasure << ", obj * value * 5000000ll = " << mDicStop[obj.mValue] * 5000000ll << ", curbpm * 4 = " << curBpm * 4 << ", result = " << (mDicStop[obj.mValue] * 5000000ll) / (curBpm * 4));
+			TRACE("measure : " << curMeasure << ", obj * value * 5000000ll = " << mListStop[obj.mValue] * 5000000ll << ", curbpm * 4 = " << curBpm * 4 << ", result = " << (mListStop[obj.mValue] * 5000000ll) / (curBpm * 4));
 			delta = static_cast<long long>(std::round((mListStop[obj.mValue] * 5000000ll) / (curBpm * 4)));
 			curTime += delta;
 			mData.mListTimeSeg.push(TimeSegment(curTime, curBpm, curBeatSum.mNumerator, curBeatSum.mDenominator));
@@ -446,6 +446,7 @@ void BMSDecryptor::MakeNoteList() {
 			// BG Note list
 			if (obj.mChannel == Channel::BGM) {
 				mData.mListBgm.push(Note(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf));
+				TRACE("bgm measure : " << i << ", channel : " << 1 << ", beat : " << bf.GetValue() << ", time : " << GetTimeUsingBeat(bf) << ", value : " << obj.mValue);
 				continue;
 			}
 

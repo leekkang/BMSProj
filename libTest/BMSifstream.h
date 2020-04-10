@@ -24,7 +24,7 @@ namespace bms {
 
 			file.open(path, std::ios_base::binary);
 			if (!file.is_open()) {
-				TRACE("The file does not exist in this path : " + Utility::WideToAnsi(path));
+				TRACE("The file does not exist in this path : " + Utility::WideToUTF8(path));
 				return false;
 			}
 			std::filebuf* pbuf = file.rdbuf();

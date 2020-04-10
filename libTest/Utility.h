@@ -230,8 +230,7 @@ namespace Utility {
 		}
 
 		constexpr Fraction() : mNumerator(0), mDenominator(1) {}
-		constexpr Fraction(int n, int d) : mNumerator(n), mDenominator(d) {}	// TODO : performance testing..
-		//constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
+		constexpr Fraction(int n, int d) : mNumerator(n / GCD(n, d)), mDenominator(d / GCD(n, d)) {}
 		constexpr Fraction(const Fraction& rhs) : mNumerator(rhs.mNumerator), mDenominator(rhs.mDenominator) {
 			//std::cout << "copy constructor" << std::endl;
 		}

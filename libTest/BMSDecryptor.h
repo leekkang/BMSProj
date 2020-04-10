@@ -100,7 +100,7 @@ namespace bms {
 		/// </summary>
 		inline long long GetTimeUsingBeat(const BeatFraction& beat) {
 			BeatFraction subtract;
-			size_t index = static_cast<uint32_t>(mData.mListTimeSeg.size()) - 1;
+			uint32_t index = static_cast<uint32_t>(mData.mListTimeSeg.size()) - 1;
 			for (; index > 0; --index) {
 				const TimeSegment& t = mData.mListTimeSeg[index];
 				subtract = beat - t.mCurBeat;

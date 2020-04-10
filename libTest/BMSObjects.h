@@ -9,8 +9,8 @@ namespace bms {
 	/// Data structure inheriting fraction structure for beat calculation
 	/// </summary>
 	struct BeatFraction : Utility::Fraction {
-		BeatFraction() : Fraction(0, 1) {}
-		BeatFraction(int n, int d) : Fraction(n, d) {}
+		BeatFraction() : Fraction() {}
+		BeatFraction(int n, int d) { mNumerator = n; mDenominator = d; }
 		BeatFraction(const Fraction& rhs) : Fraction(rhs) {}
 		// std::move should be used, but is omitted because it performs the same operation as the copy constructor.
 		BeatFraction(const Fraction&& rhs) : Fraction(rhs) {}
@@ -149,7 +149,7 @@ namespace bms {
 		}
 
 		template<typename TFunc>
-		void Sort(TFunc func) {
+		void Sort(const TFunc& func) {
 			std::sort(mList.begin(), mList.begin() + mCount, func);
 		}
 	};
