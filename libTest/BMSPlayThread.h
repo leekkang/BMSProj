@@ -29,6 +29,7 @@ namespace bms {
 	/// <summary>
 	/// The number of threads to use when generating the sound. It must not be lower than the minimum value of 1.
 	/// caution : Since there are 2 lists, the thread is created twice. ex) value = 1 -> the number of thread = 2
+	/// TODO : use std::thread::hardware_concurrency()
 	/// </summary>
 	constexpr int THREAD_NUM_FOR_LOADING = 2;
 
@@ -45,7 +46,6 @@ namespace bms {
 		~PlayThread() {
 			std::cout << "PlayThread destructor" << std::endl;
 			ForceEnd();
-			mPrevFolderPath.clear();
 		}
 
 		inline bool IsPlaying() {
@@ -78,37 +78,11 @@ namespace bms {
 			}
 			LOG("FMOD sync sound create time(ms) : " << clock() - s)
 
-			// async load lambda expression. it is an argument to std::async object
-			/// bIsBgm value is true when loop is BGM, false when loop is player note
-			auto asyncLoad = [&](bool bIsBgm, int startPoint) -> bool{
-				int max = bIsBgm ? mMaxBgmCount : mMaxNoteCount;
-				while (startPoint < max && mLoadingController) {
-					int key = bIsBgm ? mData.mListBgm[startPoint].mKey : mData.mListPlayerNote[startPoint].mKey;
-					std::string dicVal = mData.mListWavName[key];
-					mLoadingMutex.lock();
-					// already created or no sound object -> skip
-					if (mLoadingChecker[key] || dicVal == "") {
-						startPoint += THREAD_NUM_FOR_LOADING;
-						mLoadingMutex.unlock();
-					} else {
-						mLoadingChecker[key] = true;
-						mLoadingMutex.unlock();
-						mFMOD.CreateSound(folderPath + dicVal, key);
-						//mFMOD.CreateSoundAsync(folderPath + dicVal->second, key);
-						//printf("create %s sound : %d, %d, %s\n", bIsBgm ? "BGM" : "Note", startPoint, key, (dicVal->second).c_str());
-						startPoint += THREAD_NUM_FOR_LOADING;
-					}
-				}
-
-				printf("terminate %s thread \n", bIsBgm ? "BGM" : "Note");
-				return true;
-			};
-
 			//LOG("mFuture init value : " << mFuture[0].valid())
 			mLoadingController = true;
 			for (int i = 0; i < THREAD_NUM_FOR_LOADING; ++i) {
-				mFuture[i * 2] = std::async(std::launch::async, asyncLoad, true, bgmCount + i);
-				mFuture[i * 2 + 1] = std::async(std::launch::async, asyncLoad, false, noteCount + i);
+				mFuture[i * 2] = std::async(std::launch::async, &PlayThread::AsyncSoundLoad, this, folderPath, true, bgmCount + i);
+				mFuture[i * 2 + 1] = std::async(std::launch::async, &PlayThread::AsyncSoundLoad, this, folderPath, false, noteCount + i);
 			}
 			//LOG("mFuture deferred value : " << mFuture[0].valid())
 
@@ -129,7 +103,11 @@ namespace bms {
 
 			mLoadingController = false;
 			for (int i = 0; i < THREAD_NUM_FOR_LOADING * 2; ++i) {
-				mFuture[i].get();
+				try {
+					mFuture[i].get();
+				} catch (const std::exception& e) {
+					std::cout << "future.get() exception : " << e.what() << std::endl;
+				}
 			}
 		}
 
@@ -147,21 +125,13 @@ namespace bms {
 				return;
 			}
 
-			std::wstring filePath = mData.mInfo->mFilePath;
-			std::string folderPath = Utility::WideToUTF8(filePath.substr(0, filePath.find_last_of(L'/'))) + '/';
 			clock_t s = clock();
 			// initialization. preloading sound files
-			if (mPrevFolderPath != folderPath) {
-				mMaxBgmCount = static_cast<int>(mData.mListBgm.size());
-				mMaxNoteCount = static_cast<int>(mData.mListPlayerNote.size());
-				LOG("copy vector time(ms) : " << clock() - s)
-
-				s = clock();
-				CreateSounds(folderPath);
-				mPrevFolderPath = folderPath;
-			} else {
-				printf("all sounds already created\n");
-			}
+			std::wstring filePath = mData.mInfo->mFilePath;
+			std::string utfPath = Utility::WideToUTF8(filePath.substr(0, filePath.find_last_of(L'/'))) + '/';
+			mMaxBgmCount = static_cast<int>(mData.mListBgm.size());
+			mMaxNoteCount = static_cast<int>(mData.mListPlayerNote.size());
+			CreateSounds(utfPath);
 
 			LOG("FMOD sound create time(ms) : " << clock() - s)
 
@@ -270,8 +240,6 @@ namespace bms {
 		std::thread mPlayThread;
 		std::chrono::microseconds mDuration;	// max thread duration
 
-		std::string mPrevFolderPath;			// Folder path of previously loaded sound
-
 		bool mLoadingController;				// check if loading thread is working. set value to false if you want to terminate loading thread
 		std::array<bool, 1297> mLoadingChecker;	// An array that stores whether a sound file with its index as a key value has been loaded
 		std::mutex mLoadingMutex;
@@ -285,5 +253,33 @@ namespace bms {
 		int mMaxBgmCount;
 
 		FMODWrapper mFMOD;
+
+
+
+		/// <summary>
+		/// function that defines a task for loading sound files asynchronously. it is an argument to std::async object
+		/// bIsBgm value is true when loop is BGM, false when loop is player note
+		/// </summary>
+		bool AsyncSoundLoad(const std::string& folderPath, bool bIsBgm, int startPoint) {
+			int max = bIsBgm ? mMaxBgmCount : mMaxNoteCount;
+			while (startPoint < max && mLoadingController) {
+				int key = bIsBgm ? mData.mListBgm[startPoint].mKey : mData.mListPlayerNote[startPoint].mKey;
+				std::string dicVal = mData.mListWavName[key];
+				mLoadingMutex.lock();
+				// already created or no sound object -> skip
+				if (mLoadingChecker[key] || dicVal == "") {
+					startPoint += THREAD_NUM_FOR_LOADING;
+					mLoadingMutex.unlock();
+				} else {
+					mLoadingChecker[key] = true;
+					mLoadingMutex.unlock();
+					mFMOD.CreateSound(folderPath + dicVal, key);
+					startPoint += THREAD_NUM_FOR_LOADING;
+				}
+			}
+
+			printf("terminate %s thread \n", bIsBgm ? "BGM" : "Note");
+			return true;
+		}
 	};
 }

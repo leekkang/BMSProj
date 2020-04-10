@@ -15,16 +15,16 @@ int main() {
 	};
 
 	bool bLoading = false;
-	uint16_t folderIndex = 0;
-	uint16_t musicIndex = 0;
-	uint8_t patternIndex = 0;
+	int folderIndex = 0;
+	int musicIndex = 0;
+	short patternIndex = 0;
 	bms::BMSAdapter adapter;
 
 	uint16_t folderMax = adapter.GetFolderList().size();
 	const std::vector<bms::BMSNode>* musicList = &adapter.GetMusicList(folderIndex);
 
-	auto folderChange = [&](uint16_t operand) {
-		uint16_t oldIndex = folderIndex;
+	auto folderChange = [&](short operand) {
+		int oldIndex = folderIndex;
 		folderIndex += operand;
 		if (folderIndex < 0) folderIndex = folderMax - 1;
 		else if (folderIndex >= folderMax) folderIndex = 0;
@@ -42,8 +42,8 @@ int main() {
 		}
 	};
 
-	auto musicChange = [&](uint16_t operand) {
-		uint16_t oldIndex = musicIndex;
+	auto musicChange = [&](short operand) {
+		int oldIndex = musicIndex;
 
 		musicIndex += operand;
 		if (musicIndex < 0) musicIndex = (*musicList).size() - 1;
@@ -56,8 +56,8 @@ int main() {
 		}
 	};
 
-	auto patternChange = [&](uint8_t operand) {
-		uint8_t oldIndex = patternIndex;
+	auto patternChange = [&](short operand) {
+		short oldIndex = patternIndex;
 		const auto& list = (*musicList)[musicIndex].mListData;
 
 		patternIndex += operand;
@@ -91,6 +91,10 @@ int main() {
 			} else if (i == 77) {	// right arrow
 				folderChange(1);
 			}
+		} else if (i == 91) {		// [
+			patternChange(-1);
+		} else if (i == 93) {		// ]
+			patternChange(1);
 		}
 		// if multiple threads work
 		std::cout << "play music..." << std::endl;
