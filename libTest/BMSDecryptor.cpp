@@ -166,34 +166,16 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 	}
 	mData.mLongNoteType = LongnoteType::RDM_TYPE_1;
 
+	// initialize
+	Reset(mData.mInfo->mMeasureCount);
+	const char* extension = mData.mInfo->mSoundExtension.data();
+	EncodingType encodingType = mData.mInfo->mFileType;
+
 	// declare instant variable for parse
 	bool hasRandom = mData.mInfo->mHasRandom;
 	bool ignoreLine = false;
 	uint8_t rndDepth = 0, ifDepth = 0;
 	std::stack<int> rndValue;
-
-	mMeasureCount = mData.mInfo->mMeasureCount;
-	const char* extension = mData.mInfo->mSoundExtension.data();
-	EncodingType encodingType = mData.mInfo->mFileType;
-
-	// initialize
-	memset(mListStop, 0, sizeof(int) * MAX_INDEX_LENGTH);
-	memset(mListBpm, 0, sizeof(float) * MAX_INDEX_LENGTH);
-	if (mListBeatInMeasure.size() < mMeasureCount) {	// mListMeasureLength and mListObj are the same size list
-		mListBeatInMeasure.resize(mMeasureCount);
-		mListObj.resize(mMeasureCount);
-	}
-	for (uint16_t i = 0; i < mMeasureCount; ++i) {
-		mListBeatInMeasure[i].Set(4, 1);
-		mListObj[i].clear();
-	}
-	mListRawTiming.clear();
-	mData.mListTimeSeg.clear();
-	mData.mListBgm.clear();
-	mData.mListPlayerNote.clear();
-	mRawTimingCount = 0;
-	mBgmCount = 0;
-	mNoteCount = 0;
 
 	// lambda function that returns a string modified for a file type
 	auto GetUTFString = [](const char* s, EncodingType type) {

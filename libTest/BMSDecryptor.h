@@ -144,17 +144,39 @@ namespace bms {
 		uint32_t mRawTimingCount;
 		uint32_t mBgmCount;
 		uint32_t mNoteCount;
-		///<summary> a list of temporary time data objects </summary>
+		/// <summary> a list of temporary time data objects </summary>
 		ListPool<Object> mListRawTiming;
-		///<summary> a list of data objects (smallest unit), the index is measure number </summary>
+		/// <summary> a list of data objects (smallest unit), the index is measure number </summary>
 		std::vector<ListPool<Object>> mListObj;
 
-		///<summary> a list of STOP command data, the index is STOP command number </summary>
+		/// <summary> a list of STOP command data, the index is STOP command number </summary>
 		int* mListStop;
-		///<summary> a list of BPM command data, the index is BPM command number </summary>
+		/// <summary> a list of BPM command data, the index is BPM command number </summary>
 		float* mListBpm;
-		///<summary> a list of beats in one measure, the index is measure number, unit = beat (measure * 4) </summary>
+		/// <summary> a list of beats in one measure, the index is measure number, unit = beat (measure * 4) </summary>
 		std::vector<BeatFraction> mListBeatInMeasure;
+
+		/// <summary> reset all member variable </summary>
+		/// <param name="measureCount"> Number of Bars. It tells you how many lists you need to create. </param>
+		void Reset(uint16_t measureCount) {
+			mMeasureCount = measureCount;
+			mEndNoteVal = 0;
+			mRawTimingCount = 0;
+			mBgmCount = 0;
+			mNoteCount = 0;
+			mListRawTiming.clear();
+
+			memset(mListStop, 0, sizeof(int) * MAX_INDEX_LENGTH);
+			memset(mListBpm, 0, sizeof(float) * MAX_INDEX_LENGTH);
+			if (mListBeatInMeasure.size() < measureCount) {	// mListMeasureLength and mListObj are the same size list
+				mListBeatInMeasure.resize(measureCount);
+				mListObj.resize(measureCount);
+			}
+			for (uint16_t i = 0; i < measureCount; ++i) {
+				mListBeatInMeasure[i].Set(4, 1);
+				mListObj[i].clear();
+			}
+		}
 
 		/// <summary> parse function to change the value between "00" and "zz" to integer base <paramref name="radix"/> with no error check </summary>
 		inline uint16_t ParseValue(const char* val, const uint16_t radix) noexcept {

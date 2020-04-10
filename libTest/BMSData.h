@@ -122,9 +122,18 @@ namespace bms {
 
 		// ----- user access function -----
 
+		///<summary> reset all member variable </summary>
 		void Reset(BMSInfoData* const& info, bool bPreview) {
 			mReady = false;
 			mInfo = info;
+
+			mNoteCount = 0;
+			mLongCount = 0;
+			mListTimeSeg.clear();
+			mListBga.clear();
+			mListBgm.clear();
+			mListPlayerNote.clear();
+
 			for (uint16_t i = 0; i < MAX_INDEX_LENGTH; ++i) {
 				mListWavName[i].clear();
 				if (!bPreview) {

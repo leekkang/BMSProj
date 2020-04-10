@@ -4,8 +4,8 @@
 #include <functional>
 
 namespace bms {
-	//constexpr auto ROOT_PATH = L"StreamingAssets";
-	constexpr auto ROOT_PATH = L"E:/∑Á∫Í¿’";
+	constexpr auto ROOT_PATH = L"StreamingAssets";
+	//constexpr auto ROOT_PATH = L"E:/∑Á∫Í¿’";
 	constexpr auto CACHE_FILE_NAME = "test.bin";
 
 	/// <summary>
