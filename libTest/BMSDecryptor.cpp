@@ -187,14 +187,14 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 		}
 	};
 
-	// lambda function to get fraction from string
-	auto GetFraction = [](const char* p) {
+	// lambda function to get beat fraction from string. result = decrypted value * 4 (because decrypted value is measure length)
+	auto GetBeatFraction = [](const char* p) {
 		int numerator = 0, denominator = 1;
 		char c = *p;
 		bool bFraction = false;
 		while (c) {
 			if (c >= '0' && c <= '9') {
-				numerator = numerator * 10 + c;
+				numerator = numerator * 10 + (c - '0');
 				if (bFraction) {
 					denominator *= 10;
 				}
@@ -208,7 +208,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 			numerator /= gcd;
 			denominator /= gcd;
 		}
-		return BeatFraction(numerator, denominator);
+		return BeatFraction(numerator * 4, denominator);
 	};
 
 	bool isHeader = true;
@@ -305,7 +305,7 @@ bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 		// create time signature dictionary for calculate beat
 		uint16_t measure = ((*pLine - '0') * 100) + ((*(pLine + 1) - '0') * 10) + (*(pLine + 2) - '0');
 		if (channel == Channel::MEASURE_LENGTH) {
-			mListBeatInMeasure[measure] = GetFraction(pLine + 6);
+			mListBeatInMeasure[measure] = GetBeatFraction(pLine + 6);
 			TRACE("Add TimeSignature : " << measure << ", length : " << mListBeatInMeasure[measure].mNumerator << " / " << mListBeatInMeasure[measure].mDenominator);
 			continue;
 		}
@@ -447,7 +447,7 @@ void BMSDecryptor::MakeNoteList() {
 			// BG Note list
 			if (obj.mChannel == Channel::BGM) {
 				mData.mListBgm.push(Note(obj.mValue, Channel::BGM, GetTimeUsingBeat(bf), bf));
-				TRACE("bgm measure : " << i << ", channel : " << 1 << ", beat : " << bf.GetValue() << ", time : " << GetTimeUsingBeat(bf) << ", value : " << obj.mValue);
+				//TRACE("bgm measure : " << i << ", channel : " << 1 << ", beat : " << bf.GetValue() << ", time : " << GetTimeUsingBeat(bf) << ", value : " << obj.mValue);
 				continue;
 			}
 

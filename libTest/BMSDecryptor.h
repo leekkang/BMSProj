@@ -112,10 +112,7 @@ namespace bms {
 
 			// previous saved time + current segment time. if index equals to length, add reversed sign
 			const TimeSegment& prev = mData.mListTimeSeg[index];
-			//TRACE("GetTimeUsingBeat beat area check : [" << (beat > prev.mCurBeat ? 1 : 0) << ", " << 
-			//	  (index + 1 < length) ? (beat < mData.mListTimeSeg[index + 1].mCurBeat ? 1 : 0) : 1 << "], prevbpm : " << prev.mCurBpm)
-			//bool bTest = (index + 1 < length) ? (mData.mListTimeSeg[index + 1].mCurBeat - beat > 0) : true;
-			//std::cout << "GetTimeUsingBeat beat area check : [" << (beat - prev.mCurBeat >= 0) << ", " << bTest << "], prevbpm : " << prev.mCurBpm << std::endl;
+
 			return index == 0 ? beat.GetTime(prev.mCurBpm) :
 								prev.mCurTime + subtract.GetTime(prev.mCurBpm);
 		}
