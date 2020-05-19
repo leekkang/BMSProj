@@ -30,6 +30,31 @@
 
 ![](result.png)
 
+## Supported Option
+
+* Encoding Type
+  * [UCS-2](https://en.wikipedia.org/wiki/Universal_Coded_Character_Set) BE, LE
+  * [UTF-8](https://en.wikipedia.org/wiki/UTF-8)
+  * [Shift JIS](https://en.wikipedia.org/wiki/Shift_JIS)
+  * [EUC-KR](https://en.wikipedia.org/wiki/Extended_Unix_Code#EUC-KR)
+
+* [Supported Command List](http://hitkey.nekokan.dyndns.info/cmds.htm#MEMO-ABOUT-BMS-FORMAT-SPECIFICATION)
+  * [PLAYER](http://hitkey.nekokan.dyndns.info/cmds.htm#PLAYER)
+  * [TITLE](http://hitkey.nekokan.dyndns.info/cmds.htm#TITLE)
+  * [ARTIST](http://hitkey.nekokan.dyndns.info/cmds.htm#ARTIST)
+  * [GENRE](http://hitkey.nekokan.dyndns.info/cmds.htm#GENRE)
+  * [PLAYLEVEL](http://hitkey.nekokan.dyndns.info/cmds.htm#PLAYLEVEL)
+  * [DIFFICULTY](http://hitkey.nekokan.dyndns.info/cmds.htm#DIFFICULTY)
+  * [STAGEFILE](http://hitkey.nekokan.dyndns.info/cmds.htm#STAGEFILE)
+  * [BANNER](http://hitkey.nekokan.dyndns.info/cmds.htm#BANNER)
+  * [BPM](http://hitkey.nekokan.dyndns.info/cmds.htm#BPM), [BPMxx](http://hitkey.nekokan.dyndns.info/cmds.htm#BPMXX)
+  * [WAV](http://hitkey.nekokan.dyndns.info/cmds.htm#WAVXX)
+  * [STOP](http://hitkey.nekokan.dyndns.info/cmds.htm#STOPXX)
+  * [LNOBJ](http://hitkey.nekokan.dyndns.info/cmds.htm#LNOBJ)
+  * [LNTYPE](http://hitkey.nekokan.dyndns.info/cmds.htm#LNTYPE-1)
+  * [RANDOM](http://hitkey.nekokan.dyndns.info/cmds.htm#RANDOM) (control flow)
+  * Since BMP, RANK and TOTAL are headers related to gameplay, they are defined and not implemented.
+
 ## Sequence Diagram
 
 ## Inner Logic
