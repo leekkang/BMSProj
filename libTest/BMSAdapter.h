@@ -98,7 +98,7 @@ namespace bms {
 		/// <summary> call <see cref="bms::BMSTree::Load()"/> function </summary>
 		void Load() {
 			clock_t s = clock();
-			mPathTree.Load(mDecryptor);
+			mPathTree.Load();
 			LOG("mPathTree load time(ms) : " << clock() - s);
 		}
 

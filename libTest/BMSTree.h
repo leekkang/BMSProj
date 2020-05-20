@@ -186,7 +186,7 @@ namespace bms {
 		/// check file paths and load <see cref="bms::BMSInfoData"/> list from cache file
 		/// If the file does not exist or the path is changed, the object is created again to update the list.
 		/// </summary>
-		void Load(BMSDecryptor& decryptor) {
+		void Load() {
 			mChangeSave = false;
 			// 1. set parent folder info
 			// 2. set folder index to 0 of list
