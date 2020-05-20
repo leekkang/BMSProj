@@ -1,0 +1,87 @@
+
+@startuml decrypt_sequence
+title FULL FLOW
+autonumber
+hide footbox
+
+activate Main
+Main -> BMSAdapter : BMSAdapter()
+activate BMSAdapter
+BMSAdapter -> BMSTree : BMSTree(BMSDecryptor&)
+activate BMSTree
+BMSAdapter -> BMSDecryptor : BMSDecryptor(BMSData&)
+activate BMSDecryptor
+BMSAdapter -> PlayThread : PlayThread(BMSData&)
+activate PlayThread
+PlayThread -> FMODWrapper : Init()
+activate FMODWrapper
+BMSAdapter -> BMSTree : Load()
+BMSTree -> BMSTree : SearchDir
+alt Exist Cache?
+    BMSTree -> BMSTree : AddMusic(path, vec)
+end
+BMSTree -> BMSTree : SetMusicList()
+loop Exist new Music or Pattern
+    |||
+    BMSTree -> BMSDecryptor : BuildInfoData(path)
+    |||
+end
+Main -> Main : Select Folder, Music, Pattern
+Main -> BMSAdapter : Play(BMSInfoData&)
+BMSAdapter -> BMSDecryptor : Build()
+BMSAdapter <-- BMSDecryptor : Success Check
+alt Build Success?
+    |||
+    Main -> PlayThread : Play()
+    PlayThread -> PlayThread : ForceEnd all Thread
+    PlayThread -> FMODWrapper : ReleaseAllSounds()
+    PlayThread -> PlayThread : CreateSound()
+    loop Until all Sounds are Created
+        |||
+        note right of PlayThread: std::async(&AsyncSoundLoad)
+        PlayThread -> FMODWrapper : CreateSound(path, key)
+        |||
+    end
+    PlayThread -> PlayThread : Make std::thread()
+    loop Until input Stop Signal
+        |||
+        PlayThread -> PlayThread : Update()
+        alt Exist Playable Sound
+            |||
+            PlayThread -> FMODWrapper : PlaySingleSound(key)
+            PlayThread -> FMODWrapper : Update()
+            |||
+        end
+        |||
+    end
+    |||
+end
+
+loop Until input Esc key
+    |||
+    alt input Esc
+        |||
+        Main -> BMSAdapter : TerminateMusic()
+        |||
+    else input left or right arrow
+        |||
+        Main -> BMSAdapter : TerminateMusic()
+        Main -> Main : Change Folder Index
+        Main -> BMSAdapter : Play() (goto sequence 16)
+        |||
+    else input up or down arrow
+        |||
+        Main -> BMSAdapter : TerminateMusic()
+        Main -> Main : Change Music Index
+        Main -> BMSAdapter : Play() (goto sequence 16)
+        |||
+    else input `[` or `]` key
+        |||
+        Main -> BMSAdapter : TerminateMusic()
+        Main -> Main : Change Pattern Index
+        Main -> BMSAdapter : Play() (goto sequence 16)
+        |||
+    end
+    |||
+end
+@enduml

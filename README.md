@@ -57,6 +57,10 @@
 
 ## Sequence Diagram
 
+![](decrypt_sequence.png)
+
+[diagram source code](seq_diagram.wsd)
+
 ## Inner Logic
 
 ## Reference
