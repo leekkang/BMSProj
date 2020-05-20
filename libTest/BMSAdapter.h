@@ -60,7 +60,7 @@ namespace bms {
 
 			LOG("Play data : " + Utility::WideToUTF8(mCurData.mInfo->mFilePath));
 			s = clock();
-			mThread.Play(mCurData);
+			mThread.Play();
 			LOG("mThread.Play time(ms) : " << clock() - s);
 		}
 

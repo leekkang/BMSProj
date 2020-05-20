@@ -114,7 +114,7 @@ namespace bms {
 		/// <summary>
 		/// function to create a thread and play music by reading <see cref="mData"/> of <see cref="BMS::BMSData"/>
 		/// </summary>
-		void Play(const BMSData& data) {
+		void Play() {
 			// terminate if the thread is alive
 			ForceEnd();
 
