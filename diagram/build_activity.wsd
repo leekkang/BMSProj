@@ -22,6 +22,4 @@ endwhile (End of File)
 :Calculate Total PlayTime;
 stop
 endif
-
-end
 @enduml
