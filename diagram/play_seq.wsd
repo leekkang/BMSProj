@@ -1,0 +1,41 @@
+
+@startuml decrypt_play_sequence
+title PLAYSOUND FLOW
+autonumber
+hide footbox
+
+activate Main
+activate BMSAdapter
+activate BMSDecryptor
+activate PlayThread
+activate FMODWrapper
+Main -> BMSAdapter : Play(BMSInfoData&)
+BMSAdapter -> BMSDecryptor : Build()
+BMSAdapter <-- BMSDecryptor : Success Check
+alt Build Success?
+    |||
+    BMSAdapter -> PlayThread : Play()
+    PlayThread -> PlayThread : ForceEnd all Thread
+    PlayThread -> FMODWrapper : ReleaseAllSounds()
+    PlayThread -> PlayThread : CreateSound()
+    loop Until all Sounds are Created
+        |||
+        note right of PlayThread: std::async(&AsyncSoundLoad)
+        PlayThread -> FMODWrapper : CreateSound(path, key)
+        |||
+    end
+    PlayThread -> PlayThread : Make std::thread()
+    loop Until input Stop Signal
+        |||
+        PlayThread -> PlayThread : Update()
+        alt Exist Playable Sound
+            |||
+            PlayThread -> FMODWrapper : PlaySingleSound(key)
+            PlayThread -> FMODWrapper : Update()
+            |||
+        end
+        |||
+    end
+    |||
+end
+@enduml

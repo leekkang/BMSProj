@@ -123,7 +123,7 @@ bool BMSDecryptor::Build(bool bPreview) {
 	}
 	LOG("raw object make time(ms) : " << clock() - s);
 
-	// 2. Create a list that stores the cumulative number of bits per measure 
+	// 2. Create a list that stores the cumulative number of beats per measure 
 	//	  with the number of measures found when body parsing.
 	s = clock();
 	BeatFraction frac;
@@ -159,6 +159,10 @@ bool BMSDecryptor::Build(bool bPreview) {
 	return true;
 }
 
+/// <summary>
+/// parse <paramref name="line"/> for fill header and body data and store parsed line 
+/// in appropriate variable and temporary data structure
+/// </summary>
 bool BMSDecryptor::ParseToPreviewRaw() noexcept {
 	BMSifstream in((mData.mInfo->mFilePath).data());
 	if (!in.IsOpen()) {

@@ -1,0 +1,27 @@
+@startuml build_activity
+title BMSData Build Process
+start
+:1. Read BMS File and store in BMSifstream class;
+if(BMSifstream.IsOpen() is true) then (no)
+end
+else (yes)
+while (BMSifstream.GetLine())
+    if(incorrect line) then (yes)
+    else (no)
+    :header phase check;
+    :RANDOM condition check;
+    :Function division by Channel;
+    :Parsing Time Signature and Beats;
+    :Save to the appropriate Lists;
+    endif
+endwhile (End of File)
+:2. Create the list of Cumulative number of Beats per Measure;
+:Sort the TimeSegmentList Chronologically;
+:3. MakeTimeSegment()\n->Calculate seconds of each Segments;
+:4. MakeNoteList()\n->Calculate the time of each Notes and Classify it;
+:Calculate Total PlayTime;
+stop
+endif
+
+end
+@enduml

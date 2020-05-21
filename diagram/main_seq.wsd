@@ -1,6 +1,6 @@
 
-@startuml decrypt_sequence
-title FULL FLOW
+@startuml main_sequence
+title MAIN FUNCTION FLOW
 autonumber
 hide footbox
 
@@ -11,10 +11,6 @@ BMSAdapter -> BMSTree : BMSTree(BMSDecryptor&)
 activate BMSTree
 BMSAdapter -> BMSDecryptor : BMSDecryptor(BMSData&)
 activate BMSDecryptor
-BMSAdapter -> PlayThread : PlayThread(BMSData&)
-activate PlayThread
-PlayThread -> FMODWrapper : Init()
-activate FMODWrapper
 BMSAdapter -> BMSTree : Load()
 BMSTree -> BMSTree : SearchDir
 alt Exist Cache?
@@ -28,34 +24,6 @@ loop Exist new Music or Pattern
 end
 Main -> Main : Select Folder, Music, Pattern
 Main -> BMSAdapter : Play(BMSInfoData&)
-BMSAdapter -> BMSDecryptor : Build()
-BMSAdapter <-- BMSDecryptor : Success Check
-alt Build Success?
-    |||
-    Main -> PlayThread : Play()
-    PlayThread -> PlayThread : ForceEnd all Thread
-    PlayThread -> FMODWrapper : ReleaseAllSounds()
-    PlayThread -> PlayThread : CreateSound()
-    loop Until all Sounds are Created
-        |||
-        note right of PlayThread: std::async(&AsyncSoundLoad)
-        PlayThread -> FMODWrapper : CreateSound(path, key)
-        |||
-    end
-    PlayThread -> PlayThread : Make std::thread()
-    loop Until input Stop Signal
-        |||
-        PlayThread -> PlayThread : Update()
-        alt Exist Playable Sound
-            |||
-            PlayThread -> FMODWrapper : PlaySingleSound(key)
-            PlayThread -> FMODWrapper : Update()
-            |||
-        end
-        |||
-    end
-    |||
-end
 
 loop Until input Esc key
     |||
@@ -67,19 +35,19 @@ loop Until input Esc key
         |||
         Main -> BMSAdapter : TerminateMusic()
         Main -> Main : Change Folder Index
-        Main -> BMSAdapter : Play() (goto sequence 16)
+        Main -> BMSAdapter : Play(BMSInfoData&)
         |||
     else input up or down arrow
         |||
         Main -> BMSAdapter : TerminateMusic()
         Main -> Main : Change Music Index
-        Main -> BMSAdapter : Play() (goto sequence 16)
+        Main -> BMSAdapter : Play(BMSInfoData&)
         |||
     else input `[` or `]` key
         |||
         Main -> BMSAdapter : TerminateMusic()
         Main -> Main : Change Pattern Index
-        Main -> BMSAdapter : Play() (goto sequence 16)
+        Main -> BMSAdapter : Play(BMSInfoData&)
         |||
     end
     |||

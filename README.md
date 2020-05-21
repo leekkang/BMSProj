@@ -55,13 +55,19 @@
   * [RANDOM](http://hitkey.nekokan.dyndns.info/cmds.htm#RANDOM) (control flow)
   * Since BMP, RANK and TOTAL are headers related to gameplay, they are defined and not implemented.
 
-## Sequence Diagram
+## Sequence, Activity Diagram
 
-![](decrypt_sequence.png)
+[mainflow source code](diagram/main_seq.wsd)
 
-[diagram source code](seq_diagram.wsd)
+![](diagram/main_sequence.png)
 
-## Inner Logic
+[playflow source code](diagram/play_seq.wsd)
+
+![](diagram/decrypt_play_sequence.png)
+
+[buildflow source code](diagram/build_activity.wsd)
+
+![](diagram/build_activity.png)
 
 ## Reference
 
