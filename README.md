@@ -33,6 +33,7 @@
 ## Supported Option
 
 * Encoding Type
+  * [ANSI](https://en.wikipedia.org/wiki/American_National_Standards_Institute)
   * [UCS-2](https://en.wikipedia.org/wiki/Universal_Coded_Character_Set) BE, LE
   * [UTF-8](https://en.wikipedia.org/wiki/UTF-8)
   * [Shift JIS](https://en.wikipedia.org/wiki/Shift_JIS)
